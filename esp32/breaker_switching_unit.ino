@@ -1,20 +1,21 @@
-/*  
- *  UCF Senior Design Spring 2025- Group 28
- *
- *             Nicholas Rubio
- *             Anika Zheng
- *             Huga Tarira
- *             Tristan Palumbo
- *  
- *  File:   breaker_switching_unit.ino
- *
- *  Description: This file contains the source code for the main breakers switching ESP32.
- *               This MCU acts as the host for the HTTPS web server for Wi-Fi communication
- *               between the mobile app and frequency detector MCU. Its responsibilty is to
- *               manage the breaker states and flip breakers in response to either commands
- *               from the mobile app or the frequency detector unit, and report those states
- *               back to the other systems.
- */
+/************************************************************************************************
+ *   UCF Senior Design Spring 2025- Group 26                                                    *
+ * ---------------------------------------------                                                *
+ * |            Nicholas Rubio                 |                                                *
+ * |            Anika Zheng                    |                                                *
+ * |            Huga Tarira                    |                                                *
+ * |            Tristan Palumbo                |                                                *
+ * ---------------------------------------------                                                *
+ *                                                                                              *
+ *  File:   breaker_switching_unit.ino                                                          *
+ *                                                                                              *
+ *  Description: This file contains the source code for the main breakers switching ESP32.      *
+ *               This MCU acts as the host for the HTTPS web server for Wi-Fi communication     *
+ *               between the mobile app and frequency detector MCU. Its responsibilty is to     *
+ *               manage the breaker states and flip breakers in response to either commands     *
+ *               from the mobile app or the frequency detector unit, and report those states    *
+ *               back to the other systems.                                                     *
+ ************************************************************************************************/
 
 #include <WiFi.h>
 #include <WebServer.h>
