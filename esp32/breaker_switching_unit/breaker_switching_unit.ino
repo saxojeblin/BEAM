@@ -20,38 +20,31 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-// Wi-Fi credentials
-const char* ssid = "test";
-const char* password = "test";
+// Define Wi-Fi credentials (ESP32 will create its own network)
+const char* apSSID = "BEAM_Server";
+const char* apPassword = "12345678"; // Minimum 8 characters required
 
-// Web server running on port 80
+// Create a web server on port 80
 WebServer server(80);
-
-// GPIO pins for relays
-const int relayPins[] = {5, 18, 19, 21}; // Replace with your relay GPIO pins
-const int relayCount = sizeof(relayPins) / sizeof(relayPins[0]);
 
 void setup() {
   Serial.begin(115200);
+  delay(1000);
+  Serial.println("ESP32 is starting...");
 
-  // Connect to Wi-Fi
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting to Wi-Fi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nConnected to Wi-Fi");
-  Serial.println(WiFi.localIP());
+  // Start ESP32 as a Wi-Fi Access Point
+  WiFi.softAP(apSSID, apPassword);
 
-  // Initialize relay pins
-  for (int i = 0; i < relayCount; i++) {
-    pinMode(relayPins[i], OUTPUT);
-    digitalWrite(relayPins[i], HIGH); // Default OFF state for active-low relays
-  }
+  Serial.println("ESP32-A is running as an Access Point!");
+  Serial.print("ESP32-A IP Address: ");
+  Serial.println(WiFi.softAPIP());
 
-  // Define HTTP endpoints
-  server.on("/toggle", handleToggle);
+  // Define a test endpoint
+  server.on("/test", HTTP_GET, []() {
+    server.send(200, "text/plain", "ESP32-A Connection Successful!");
+  });
+
+  // Start the web server
   server.begin();
   Serial.println("HTTP server started");
 }
@@ -60,26 +53,3 @@ void loop() {
   server.handleClient();
 }
 
-// Handle requests to toggle relays
-void handleToggle() {
-  if (server.hasArg("breaker") && server.hasArg("state")) {
-    int breaker = server.arg("breaker").toInt() - 1; // Breaker index (1-based)
-    String state = server.arg("state");
-
-    if (breaker >= 0 && breaker < relayCount) {
-      if (state == "on") {
-        digitalWrite(relayPins[breaker], LOW); // Turn relay ON
-        server.send(200, "text/plain", "Breaker turned ON");
-      } else if (state == "off") {
-        digitalWrite(relayPins[breaker], HIGH); // Turn relay OFF
-        server.send(200, "text/plain", "Breaker turned OFF");
-      } else {
-        server.send(400, "text/plain", "Invalid state");
-      }
-    } else {
-      server.send(400, "text/plain", "Invalid breaker index");
-    }
-  } else {
-    server.send(400, "text/plain", "Missing parameters");
-  }
-}

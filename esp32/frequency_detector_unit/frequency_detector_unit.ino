@@ -1,5 +1,5 @@
 /************************************************************************************************
- *   UCF Senior Design Spring 2025- Group 28                                                    *
+ *   UCF Senior Design Spring 2025- Group 26                                                    *
  * ---------------------------------------------                                                *
  * |            Nicholas Rubio                 |                                                *
  * |            Anika Zheng                    |                                                *
@@ -7,7 +7,7 @@
  * |            Tristan Palumbo                |                                                *
  * ---------------------------------------------                                                *
  *                                                                                              *
- *  File:   frequency_detector_unit.ino                                                        *
+ *  File:   frequency_detector_unit.ino                                                         *
  *                                                                                              *
  *  Description: This file contains the source code for the frequency detector unit in BEAM.    *
  *               This code is responsible for reading the frequency of the grid and sending     *

@@ -1,6 +1,7 @@
 // ignore_for_file: library_private_types_in_public_api
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(BeamApp());
@@ -324,6 +325,42 @@ class _SettingsPageState extends State<SettingsPage> {
   bool notificationsEnabled = false;
   String connectionStatus = "Disconnected";
 
+  Future<void> testConnection() async {
+    String ip = ipController.text;
+    String port = portController.text;
+    if (ip.isEmpty || port.isEmpty) {
+      setState(() {
+        connectionStatus = "Please enter IP and Port.";
+      });
+      return;
+    }
+
+    String url = "http://$ip:$port/test";
+
+    try {
+      final response = await http.get(Uri.parse(url)).timeout(
+        Duration(seconds: 3),
+        onTimeout: () {
+          throw Exception("Timeout");
+        },
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          connectionStatus = "Connected to BEAM device!";
+        });
+      } else {
+        setState(() {
+          connectionStatus = "Failed (Code: ${response.statusCode})";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        connectionStatus = "Could not connect to BEAM device";
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -331,10 +368,7 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor: Colors.teal.shade800,
         title: const Text(
           'Settings',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -385,16 +419,14 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                             SizedBox(height: 16),
                             ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  connectionStatus = "Connected to ${ipController.text}:${portController.text}";
-                                });
-                              },
+                              onPressed: testConnection,
                               child: Text("Connect"),
                             ),
                             SizedBox(height: 16),
-                            Text("Status: $connectionStatus",
-                                style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text(
+                              "Status: $connectionStatus",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ],
                         ),
                       ),
@@ -413,8 +445,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text("Enable Notifications",
-                                style: TextStyle(fontSize: 18)),
+                            Text("Enable Notifications", style: TextStyle(fontSize: 18)),
                             Switch(
                               value: notificationsEnabled,
                               onChanged: (value) {
