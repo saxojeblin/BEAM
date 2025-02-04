@@ -36,6 +36,32 @@ class _ControlPageState extends State<ControlPage> {
   // Breaker statuses
   List<bool> breakerStatus = [true, false, true, false];
 
+  // ESP32 IP Address (Set dynamically from Settings)
+  final String esp32Ip = "192.168.4.1"; // Default AP mode IP
+  final String esp32Port = "80"; // Default Port
+
+  // Function to send breaker status update to ESP32
+  Future<void> sendBreakerStatus(int breakerIndex, bool status) async {
+    String url = "http://$esp32Ip:$esp32Port/breaker";
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        body: {
+          'breaker': breakerIndex.toString(),
+          'status': status ? '1' : '0',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        print("Breaker ${breakerIndex + 1} updated successfully.");
+      } else {
+        print("Failed to update breaker ${breakerIndex + 1}. Response: ${response.body}");
+      }
+    } catch (e) {
+      print("Error sending breaker update: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,6 +168,9 @@ class _ControlPageState extends State<ControlPage> {
                       ),
                     );
                   });
+
+                  // Send request to ESP32 when toggled
+                  sendBreakerStatus(index, value);
                 },
                 activeColor: Colors.cyan.shade600,
                 inactiveThumbColor: Colors.amber.shade700,
@@ -153,6 +182,7 @@ class _ControlPageState extends State<ControlPage> {
     );
   }
 }
+
 
 class SystemPage extends StatefulWidget {
   const SystemPage({super.key});
