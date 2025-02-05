@@ -12,8 +12,8 @@
 #define s4 20
 
 // dc motor
-#define in1 5 
-#define in2 6
+#define in1 14 // NICK: UPDATE THESE, CURRENTLY PLACEHOLDERS!
+#define in2 15
 
 // Wi-Fi credentials (ESP32 in AP mode)
 const char* apSSID = "BEAM_Server";
@@ -67,13 +67,13 @@ void loop() {
 void handleBreakerRequest() {
   if (server.hasArg("breaker") && server.hasArg("status")) {
     // Get breaker command info
-    int breakerIndex = server.arg("breaker").toInt();
+    int breakerIndex = server.arg("breaker").toInt() + 1;
     bool status = server.arg("status") == "1";
 
     // Determine which breaker we are flipping
     switch (breakerIndex) {
       case 1:
-        Serial.println("Attemping to flip breaker 1...\n");
+        Serial.println("Attemping to flip breaker 1...");
         // Goes to switch 1
         // moveStepper(s1);
         // switchDCMotor();
@@ -82,7 +82,7 @@ void handleBreakerRequest() {
         breaker_1_status = !breaker_1_status;
         break;
       case 2:
-        Serial.println("Attemping to flip breaker 2...\n");
+        Serial.println("Attemping to flip breaker 2...");
         // Goes to switch 2
         // moveStepper(s2);
         // switchDCMotor();
@@ -91,7 +91,7 @@ void handleBreakerRequest() {
         breaker_2_status = !breaker_2_status;
         break;
       case 3:
-        Serial.println("Attemping to flip breaker 3...\n");
+        Serial.println("Attemping to flip breaker 3...");
         // Goes to switch 3
         // moveStepper(s3);
         // switchDCMotor();
@@ -100,7 +100,7 @@ void handleBreakerRequest() {
         breaker_3_status = !breaker_3_status;
         break;
       case 4:
-        Serial.println("Attemping to flip breaker 4...\n");
+        Serial.println("Attemping to flip breaker 4...");
         // Goes to switch 4
         // moveStepper(s4);
         // switchDCMotor();
@@ -114,7 +114,7 @@ void handleBreakerRequest() {
     }
 
     Serial.printf("Received Breaker Update: Breaker %d is now %s\n",
-                  breakerIndex + 1, status ? "ON" : "OFF");
+                  breakerIndex, status ? "ON" : "OFF");
     
     // print current breaker states (comment out if not needed)
     printBreakerStates();
