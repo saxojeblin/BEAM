@@ -1,5 +1,8 @@
 #include <WiFi.h>
 #include <WebServer.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // stepper motor:
 #define dirPin 13
@@ -12,8 +15,8 @@
 #define s4 20
 
 // dc motor
-#define in1 14 // NICK: UPDATE THESE, CURRENTLY PLACEHOLDERS!
-#define in2 15
+#define in1 34
+#define in2 32
 
 // Wi-Fi credentials (ESP32 in AP mode)
 const char* apSSID = "BEAM_Server";
@@ -67,7 +70,7 @@ void loop() {
 void handleBreakerRequest() {
   if (server.hasArg("breaker") && server.hasArg("status")) {
     // Get breaker command info
-    int breakerIndex = server.arg("breaker").toInt() + 1;
+    int breakerIndex = server.arg("breaker").toInt() + 1; // breakers are 0 index on app
     bool status = server.arg("status") == "1";
 
     // Determine which breaker we are flipping
@@ -75,36 +78,36 @@ void handleBreakerRequest() {
       case 1:
         Serial.println("Attemping to flip breaker 1...");
         // Goes to switch 1
-        // moveStepper(s1);
-        // switchDCMotor();
-        // moveStepper(s1);
+        moveStepperForward(s1);
+        switchDCMotor();
+        moveStepperBackward(s1);
         // Update new breaker status
         breaker_1_status = !breaker_1_status;
         break;
       case 2:
         Serial.println("Attemping to flip breaker 2...");
         // Goes to switch 2
-        // moveStepper(s2);
-        // switchDCMotor();
-        // moveStepper(s2);
+        moveStepperForward(s2);
+        switchDCMotor();
+        moveStepperBackward(s2);
         // Update new breaker status
         breaker_2_status = !breaker_2_status;
         break;
       case 3:
         Serial.println("Attemping to flip breaker 3...");
         // Goes to switch 3
-        // moveStepper(s3);
-        // switchDCMotor();
-        // moveStepper(s3);
+        moveStepperForward(s3);
+        switchDCMotor();
+        moveStepperBackward(s3);
         // Update new breaker status
         breaker_3_status = !breaker_3_status;
         break;
       case 4:
         Serial.println("Attemping to flip breaker 4...");
         // Goes to switch 4
-        // moveStepper(s4);
-        // switchDCMotor();
-        // moveStepper(s4);
+        moveStepperForward(s4);
+        switchDCMotor();
+        moveStepperBackward(s4);
         // Update new breaker status
         breaker_4_status = !breaker_4_status;
         break;
@@ -127,7 +130,7 @@ void handleBreakerRequest() {
   }
 }
 
-void moveStepper(int stepsMultiplier) {
+void moveStepperForward(int stepsMultiplier) {
   // Set the spinning direction counterclockwise:
   digitalWrite(dirPin, LOW);
   delay(1000);
@@ -139,6 +142,12 @@ void moveStepper(int stepsMultiplier) {
     delayMicroseconds(500);
   }
 
+}
+
+void moveStepperBackward(int stepsMultiplier) {
+  // Set the spinning direction counterclockwise:
+  digitalWrite(dirPin, LOW);
+  delay(1000);
   // Set the spinning direction clockwise:
   digitalWrite(dirPin, HIGH);
   delay(1000);

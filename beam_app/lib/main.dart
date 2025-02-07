@@ -34,7 +34,7 @@ class ControlPage extends StatefulWidget {
 
 class _ControlPageState extends State<ControlPage> {
   // Breaker statuses
-  List<bool> breakerStatus = [true, false, true, false];
+  List<bool> breakerStatus = [false, false, false, false];
 
   // ESP32 IP Address (Set dynamically from Settings)
   final String esp32Ip = "192.168.4.1"; // Default AP mode IP
@@ -47,7 +47,7 @@ class _ControlPageState extends State<ControlPage> {
       final response = await http.post(
         Uri.parse(url),
         body: {
-          'breaker': breakerIndex.toString(),
+          'breaker': breakerIndex.toString(), // index on esp32 isn't 0 based
           'status': status ? '1' : '0',
         },
       );
