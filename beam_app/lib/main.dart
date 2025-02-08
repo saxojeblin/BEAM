@@ -40,85 +40,156 @@ class _ControlPageState extends State<ControlPage> {
   final String esp32Ip = "192.168.4.1"; // Default AP mode IP
   final String esp32Port = "80"; // Default Port
 
+  bool isLoading = false; // Track if a request is in progress
+  String loadingMessage = ""; // Dynamic loading message
+
   // Function to send breaker status update to ESP32
   Future<void> sendBreakerStatus(int breakerIndex, bool status) async {
+    if (isLoading) return; // Prevent multiple requests
+
+    setState(() {
+      isLoading = true;
+      loadingMessage = "Flipping Breaker ${breakerIndex + 1}..."; // Dynamic message
+    });
+
     String url = "http://$esp32Ip:$esp32Port/breaker";
+
     try {
       final response = await http.post(
         Uri.parse(url),
         body: {
-          'breaker': breakerIndex.toString(), // index on esp32 isn't 0 based
+          'breaker': breakerIndex.toString(),
           'status': status ? '1' : '0',
+        },
+      ).timeout(
+        Duration(seconds: 5), // ✅ Timeout after 5 seconds
+        onTimeout: () {
+          throw Exception("Timeout");
         },
       );
 
       if (response.statusCode == 200) {
         print("Breaker ${breakerIndex + 1} updated successfully.");
+        setState(() {
+          breakerStatus[breakerIndex] = status; // Update UI only on success
+        });
       } else {
         print("Failed to update breaker ${breakerIndex + 1}. Response: ${response.body}");
+        setState(() {
+          breakerStatus[breakerIndex] = !status; // Revert toggle if failure
+        });
       }
     } catch (e) {
       print("Error sending breaker update: $e");
+      setState(() {
+        breakerStatus[breakerIndex] = !status; // Revert toggle on error
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to communicate with BEAM. Check connection."),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
+
+    setState(() {
+      isLoading = false; // ✅ Re-enable UI after timeout or response
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.teal.shade800,
-        title: const Text(
-          'Control',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.teal.shade800,
+            title: const Text(
+              'Control',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            centerTitle: true,
           ),
-        ),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.teal.shade300, Colors.cyan.shade600],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+          body: Column(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.teal.shade300, Colors.cyan.shade600],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(4, (index) => _buildBreakerTile(index)),
+                  ),
                 ),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(4, (index) => _buildBreakerTile(index)),
+            ],
+          ),
+          bottomNavigationBar: BottomNavigationBar(
+            backgroundColor: Colors.grey.shade900,
+            selectedItemColor: Colors.cyan,
+            unselectedItemColor: Colors.grey.shade500,
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.control_camera), label: 'Control'),
+              BottomNavigationBarItem(icon: Icon(Icons.system_update_alt), label: 'System'),
+              BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+            ],
+            currentIndex: 0, // Set to 0 for the Control page
+            onTap: isLoading
+                ? null // Prevent navigation while loading
+                : (index) {
+                    if (index == 1) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => SystemPage()),
+                      );
+                    } else if (index == 2) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => SettingsPage()),
+                      );
+                    }
+                  },
+          ),
+        ),
+
+        // Full-Screen Loading Overlay
+        if (isLoading)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.6), // Darken screen
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white, strokeWidth: 5),
+                    SizedBox(height: 15),
+                    // Replace with Text.rich to remove underline
+                    Text.rich(
+                      TextSpan(
+                        text: loadingMessage,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          decoration: TextDecoration.none, // Remove underline
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.grey.shade900,
-        selectedItemColor: Colors.cyan,
-        unselectedItemColor: Colors.grey.shade500,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.control_camera), label: 'Control'),
-          BottomNavigationBarItem(icon: Icon(Icons.system_update_alt), label: 'System'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
-        ],
-        currentIndex: 0, // Set to 0 for the Control page
-        onTap: (index) {
-          if (index == 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => SystemPage()),
-            );
-          } else if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => SettingsPage()),
-            );
-          }
-        },
-      ),
+      ],
     );
   }
 
@@ -158,20 +229,11 @@ class _ControlPageState extends State<ControlPage> {
               ),
               Switch(
                 value: breakerStatus[index],
-                onChanged: (value) {
-                  setState(() {
-                    breakerStatus[index] = value;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Breaker ${index + 1} turned ${value ? 'ON' : 'OFF'}'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  });
-
-                  // Send request to ESP32 when toggled
-                  sendBreakerStatus(index, value);
-                },
+                onChanged: isLoading
+                    ? null // Disable switch while waiting for ESP32 response
+                    : (value) {
+                        sendBreakerStatus(index, value);
+                      },
                 activeColor: Colors.cyan.shade600,
                 inactiveThumbColor: Colors.amber.shade700,
               ),
@@ -182,7 +244,6 @@ class _ControlPageState extends State<ControlPage> {
     );
   }
 }
-
 
 class SystemPage extends StatefulWidget {
   const SystemPage({super.key});
