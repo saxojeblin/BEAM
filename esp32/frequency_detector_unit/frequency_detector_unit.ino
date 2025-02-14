@@ -20,7 +20,8 @@
 
 #include <arduinoFFT.h>
 
-#define ADC_PIN 4 
+#define LED_PIN 18
+#define ADC_PIN 39 
 #define NUM_SAMPLES 1024 // Must be power of 2 because it makes FFT easier to calculate // 240/1024 gives us the resolution and 1024/240 gives us the total sampling time 
 #define SAMPLING_FREQ 240 //Our sampling rate because according to nyquist thereom we need twice the frequency of what we want to detect the actual frequency 
 
@@ -38,6 +39,8 @@ void setup(){
   analogReadResolution(12);
 
   sampling_period_us = 1000000.0 / SAMPLING_FREQ;
+
+  pinMode(LED_PIN, OUTPUT);
 }
 
 void loop(){
@@ -66,4 +69,8 @@ void loop(){
   double frequency = ((1.0 * peak_index) / NUM_SAMPLES) * SAMPLING_FREQ; //multiplying the index by the resolution
 
   Serial.printf("Frequency = %.1f\n", frequency);
+
+  digitalWrite(LED_PIN, HIGH);  // turn the LED on (HIGH is the voltage level)
+  delay(100);                      // wait for a second
+  digitalWrite(LED_PIN, LOW);   // turn the LED off by making the voltage LOW
 }
