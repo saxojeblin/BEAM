@@ -17,7 +17,6 @@
  ************************************************************************************************/
 
 // anika code here
-
 #include "WiFi.h"
 #include <HTTPClient.h>
 
@@ -27,6 +26,7 @@
 #define ADC_PIN 39
 #define NUM_SAMPLES 1024   // Must be power of 2 because it makes FFT easier to calculate // 240/1024 gives us the resolution and 1024/240 gives us the total sampling time
 #define SAMPLING_FREQ 240  //Our sampling rate because according to nyquist thereom we need twice the frequency of what we want to detect the actual frequency
+#define History_size 3 //Store last 3 frequency values
 
 const char* ssid = "BEAM_Server";
 const char* password = "12345678";
@@ -35,6 +35,8 @@ const char* serverName = "http://192.168.4.1:80/frequency";
 double real_samples[NUM_SAMPLES];
 double imag_samples[NUM_SAMPLES];
 double sampling_period_us;
+double frequency_history[History_size] = {0,0,0};
+double last_frequency = 0;
 
 ArduinoFFT<double> FFT = ArduinoFFT<double>(real_samples, imag_samples, NUM_SAMPLES, SAMPLING_FREQ);
 
@@ -86,7 +88,23 @@ void loop() {
 
   double frequency = ((1.0 * peak_index) / NUM_SAMPLES) * SAMPLING_FREQ;  //multiplying the index by the resolution
 
-  if (WiFi.status() == WL_CONNECTED) {
+  for (int i = 0; i < History_size-1; i++) {
+    frequency_history[i] = frequency_history[i+1];
+  }
+
+  frequency_history[History_size-1] = frequency;
+
+  bool sendupdate = false;
+
+  if(frequency >= 59.4) {
+    if (frequency != last_frequency){
+      sendupdate = true;
+    }
+  } else if (frequency_history[0] < 59.4 && frequency_history[1] < 59.4) {
+    sendupdate = true;
+  }
+
+  if (sendupdate && WiFi.status() == WL_CONNECTED) {
     WiFiClient client;
     HTTPClient http;
 
@@ -110,6 +128,7 @@ void loop() {
 
     // Free resources
     http.end();
+    last_frequency = frequency;
   } else {
     Serial.println("WiFi Disconnected");
   }
