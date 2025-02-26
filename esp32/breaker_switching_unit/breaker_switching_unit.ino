@@ -46,6 +46,9 @@ void setup() {
   // Define endpoint for breaker updates
   server.on("/breaker", HTTP_POST, handleBreakerRequest);
 
+  // Define endpoint for frequency response settings
+  server.on("/frequency_settings", HTTP_POST, handleFreqResponseSettings);
+
   server.begin();
   Serial.println("HTTP server started.");
 

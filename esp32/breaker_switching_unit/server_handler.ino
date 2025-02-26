@@ -15,6 +15,7 @@
  ************************************************************************************************/
 
 #include "config.h"
+#include <ArduinoJson.h>
 
 void handleBreakerRequest() {
     if (server.hasArg("breaker") && server.hasArg("status")) {
@@ -79,3 +80,33 @@ void handleBreakerRequest() {
     }
   }
   
+void handleFreqResponseSettings() {
+  if (server.hasArg("plain")) {
+    String body = server.arg("plain");
+    Serial.println("Received Breaker Settings: " + body);
+
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, body);
+
+    if (error) {
+      Serial.println("JSON Parsing Failed");
+      server.send(400, "application/json", "{\"status\": \"error\", \"message\": \"Invalid JSON\"}");
+      return;
+    }
+
+    // Update breaker settings from JSON
+    freqResponseSettings.breaker1 = doc["breaker1"];
+    freqResponseSettings.breaker2 = doc["breaker2"];
+    freqResponseSettings.breaker3 = doc["breaker3"];
+    freqResponseSettings.breaker4 = doc["breaker4"];
+
+    Serial.println("Updated Frequency Response Settings Settings:");
+    Serial.printf("Breaker 1: %d, Breaker 2: %d, Breaker 3: %d, Breaker 4: %d\n",
+                  freqResponseSettings.breaker1, freqResponseSettings.breaker2,
+                  freqResponseSettings.breaker3, freqResponseSettings.breaker4);
+
+    server.send(200, "application/json", "{\"status\": \"success\"}");
+  } else {
+    server.send(400, "application/json", "{\"status\": \"error\", \"message\": \"No JSON received\"}");
+  }
+}

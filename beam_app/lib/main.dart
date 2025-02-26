@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 void main() {
   runApp(BeamApp());
@@ -403,6 +404,7 @@ class _SystemPageState extends State<SystemPage> {
   }
 }
 
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -411,176 +413,258 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  TextEditingController ipController = TextEditingController();
-  TextEditingController portController = TextEditingController();
+  // Breakers configuration for frequency spikes
+  List<bool> breakersToFlip = [false, false, false, false];
+
+  // Notifications toggle
   bool notificationsEnabled = false;
-  String connectionStatus = "Disconnected";
 
-  Future<void> testConnection() async {
-    String ip = ipController.text;
-    String port = portController.text;
-    if (ip.isEmpty || port.isEmpty) {
-      setState(() {
-        connectionStatus = "Please enter IP and Port.";
-      });
-      return;
-    }
+  // ESP32 IP Address (Modify if needed)
+  final String esp32Ip = "192.168.4.1";
+  final String esp32Port = "80";
 
-    String url = "http://$ip:$port/test";
+  // Loading State
+  bool isLoading = false;
+  String loadingMessage = ""; // Dynamic loading text
+
+  Future<void> sendBreakerSettings() async {
+    if (isLoading) return; // Prevent multiple clicks
+
+    setState(() {
+      isLoading = true;
+      loadingMessage = "Saving Settings..."; // Show dynamic message
+    });
+
+    String url = "http://$esp32Ip:$esp32Port/frequency_settings";
+    Map<String, dynamic> data = {
+      "breaker1": breakersToFlip[0],
+      "breaker2": breakersToFlip[1],
+      "breaker3": breakersToFlip[2],
+      "breaker4": breakersToFlip[3],
+    };
 
     try {
-      final response = await http.get(Uri.parse(url)).timeout(
-        Duration(seconds: 3),
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(data),
+      ).timeout(
+        Duration(seconds: 5), // Timeout after 5 seconds
         onTimeout: () {
           throw Exception("Timeout");
         },
       );
 
       if (response.statusCode == 200) {
-        setState(() {
-          connectionStatus = "Connected to BEAM device!";
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Breaker settings updated successfully.")),
+        );
       } else {
-        setState(() {
-          connectionStatus = "Failed (Code: ${response.statusCode})";
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to update breaker settings.")),
+        );
       }
     } catch (e) {
-      setState(() {
-        connectionStatus = "Could not connect to BEAM device";
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: Could not connect to ESP32.")),
+      );
     }
+
+    setState(() {
+      isLoading = false; // Re-enable UI
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.teal.shade800,
-        title: const Text(
-          'Settings',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.teal.shade300, Colors.cyan.shade600],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.teal.shade800,
+            title: const Text(
+              'Settings',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            centerTitle: true,
+          ),
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.teal.shade300, Colors.cyan.shade600],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      elevation: 4,
-                      color: Colors.grey.shade100,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            TextField(
-                              controller: ipController,
-                              decoration: InputDecoration(
-                                labelText: "IP Address",
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: SingleChildScrollView(
+                physics: ClampingScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // **Frequency Spike Settings**
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: Card(
+                        color: Colors.grey.shade100,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 3,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Breakers to Flip on Frequency Spike:',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.teal.shade800,
                                 ),
                               ),
-                            ),
-                            SizedBox(height: 16),
-                            TextField(
-                              controller: portController,
-                              decoration: InputDecoration(
-                                labelText: "Port",
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                              SizedBox(height: 6),
+                              Column(
+                                children: List.generate(4, (index) {
+                                  return Column(
+                                    children: [
+                                      CheckboxListTile(
+                                        title: Text("Breaker ${index + 1}",
+                                            style: TextStyle(fontSize: 14)),
+                                        value: breakersToFlip[index],
+                                        onChanged: isLoading
+                                            ? null // Disable changes while loading
+                                            : (bool? value) {
+                                                setState(() {
+                                                  breakersToFlip[index] = value ?? false;
+                                                });
+                                              },
+                                        contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                                        dense: true,
+                                        activeColor: Colors.teal.shade800,
+                                      ),
+                                      if (index < 3)
+                                        Divider(color: Colors.grey.shade400, height: 10),
+                                    ],
+                                  );
+                                }),
+                              ),
+                              SizedBox(height: 8),
+                              Center(
+                                child: ElevatedButton(
+                                  onPressed: isLoading ? null : sendBreakerSettings,
+                                  child: Text("Save Settings"),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isLoading
+                                        ? Colors.grey.shade500
+                                        : Colors.teal.shade800,
+                                    foregroundColor: Colors.white,
+                                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                    textStyle:
+                                        TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ),
-                            ),
-                            SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: testConnection,
-                              child: Text("Connect"),
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              "Status: $connectionStatus",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      elevation: 4,
-                      color: Colors.grey.shade100,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text("Enable Notifications", style: TextStyle(fontSize: 18)),
-                            Switch(
-                              value: notificationsEnabled,
-                              onChanged: (value) {
-                                setState(() {
-                                  notificationsEnabled = value;
-                                });
-                              },
-                              activeColor: Colors.cyan.shade600,
-                            ),
-                          ],
+
+                    SizedBox(height: 10),
+
+                    // **Notifications Toggle**
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Card(
+                        color: Colors.grey.shade100,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 3,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text("Enable Notifications", style: TextStyle(fontSize: 16)),
+                              Switch(
+                                value: notificationsEnabled,
+                                onChanged: isLoading
+                                    ? null // Disable switch while saving
+                                    : (value) {
+                                        setState(() {
+                                          notificationsEnabled = value;
+                                        });
+                                      },
+                                activeColor: Colors.cyan.shade600,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.grey.shade900,
-        selectedItemColor: Colors.cyan,
-        unselectedItemColor: Colors.grey.shade500,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.control_camera), label: 'Control'),
-          BottomNavigationBarItem(icon: Icon(Icons.system_update_alt), label: 'System'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
-        ],
-        currentIndex: 2, // Set to 2 for the Settings page
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ControlPage()),
-            );
-          } else if (index == 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => SystemPage()),
-            );
-          }
-        },
-      ),
+          bottomNavigationBar: BottomNavigationBar(
+            backgroundColor: Colors.grey.shade900,
+            selectedItemColor: Colors.cyan,
+            unselectedItemColor: Colors.grey.shade500,
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.control_camera), label: 'Control'),
+              BottomNavigationBarItem(icon: Icon(Icons.system_update_alt), label: 'System'),
+              BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+            ],
+            currentIndex: 2,
+            onTap: isLoading
+                ? null // Prevent navigation while loading
+                : (index) {
+                    if (index == 0) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ControlPage()),
+                      );
+                    } else if (index == 1) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => SystemPage()),
+                      );
+                    }
+                  },
+          ),
+        ),
+
+        // **Full-Screen Loading Overlay**
+        if (isLoading)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.6), // Darken screen
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white, strokeWidth: 5),
+                    SizedBox(height: 15),
+                    Text(
+                      loadingMessage,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
