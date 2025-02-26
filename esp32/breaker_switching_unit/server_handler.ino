@@ -28,36 +28,36 @@ void handleBreakerRequest() {
         case 1:
           Serial.println("Attemping to flip breaker 1...");
           // Goes to switch 1
-          moveStepperForward(s1);
+          moveStepperForward(pos1);
           switchDCMotor();
-          moveStepperBackward(s1);
+          moveStepperBackward(pos1);
           // Update new breaker status
           currentBreakerStatus.breaker1 = !currentBreakerStatus.breaker1;
           break;
         case 2:
           Serial.println("Attemping to flip breaker 2...");
           // Goes to switch 2
-          moveStepperForward(s2);
+          moveStepperForward(pos2);
           switchDCMotor();
-          moveStepperBackward(s2);
+          moveStepperBackward(pos2);
           // Update new breaker status
           currentBreakerStatus.breaker2 = !currentBreakerStatus.breaker2;
           break;
         case 3:
           Serial.println("Attemping to flip breaker 3...");
           // Goes to switch 3
-          moveStepperForward(s3);
+          moveStepperForward(pos3);
           switchDCMotor();
-          moveStepperBackward(s3);
+          moveStepperBackward(pos3);
           // Update new breaker status
           currentBreakerStatus.breaker3 = !currentBreakerStatus.breaker3;
           break;
         case 4:
           Serial.println("Attemping to flip breaker 4...");
           // Goes to switch 4
-          moveStepperForward(s4);
+          moveStepperForward(pos4);
           switchDCMotor();
-          moveStepperBackward(s4);
+          moveStepperBackward(pos4);
           // Update new breaker status
           currentBreakerStatus.breaker4 = !currentBreakerStatus.breaker4;
           break;

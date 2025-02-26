@@ -22,10 +22,10 @@
 #define stepPin 12
 #define stepsPerRevolution 400
 #define revolutions 15
-#define s1 5
-#define s2 10
-#define s3 15
-#define s4 20
+#define pos1 5
+#define pos2 10
+#define pos3 15
+#define pos4 20
 
 // dc motor
 #define in1 34
