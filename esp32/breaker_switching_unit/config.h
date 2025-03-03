@@ -18,8 +18,8 @@
 #define CONFIG_H
 
 // stepper motor:
-#define dirPin 13
-#define stepPin 12
+#define dirPin 18
+#define stepPin 19
 #define stepsPerRevolution 400
 #define revolutions 15
 #define pos1 5
@@ -28,8 +28,8 @@
 #define pos4 20
 
 // dc motor
-#define in1 34
-#define in2 32
+#define in1 16
+#define in2 17
 
 // Breakers struct containing on/off setting for each breaker
 struct Breakers {
