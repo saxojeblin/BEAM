@@ -79,6 +79,21 @@ void handleBreakerRequest() {
       Serial.println("ERROR: Missing arguments in breaker request!");
     }
   }
+
+void FrequencyRequest(){
+  if (server.hasArg("frequency")){
+    double frequency = server.arg("frequency").toDouble();
+    if (frequency <= 59.4){
+      Serial.println("CRITICAL FREQUENCY DROP");
+    } else{
+    Serial.println("Frequency = " + String(frequency));
+    server.send(200, "text/plain", "Success");
+    }
+  } else {
+    server.send(400, "text/plain", "Missing arguments");
+    Serial.println("ERROR: Missing arguments in frequency request!");
+  }
+}
   
 void handleFreqResponseSettings() {
   if (server.hasArg("plain")) {
