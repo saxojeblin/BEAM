@@ -63,7 +63,7 @@ class _ControlPageState extends State<ControlPage> {
           'status': status ? '1' : '0',
         },
       ).timeout(
-        Duration(seconds: 5), // ✅ Timeout after 5 seconds
+        Duration(seconds: 30), // ✅ Timeout after 5 seconds
         onTimeout: () {
           throw Exception("Timeout");
         },
