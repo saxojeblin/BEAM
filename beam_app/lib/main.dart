@@ -2,8 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:web_socket_channel/io.dart';
 import 'dart:convert';
+import 'websocket_service.dart';
 
 void main() {
   runApp(BeamApp());
@@ -255,52 +255,7 @@ class SystemPage extends StatefulWidget {
 }
 
 class _SystemPageState extends State<SystemPage> {
-  String gridFrequency = "60 Hz"; // Default value
-  String wifiStatus = "Connected";
-  late IOWebSocketChannel channel;
-  final String esp32Ip = "192.168.4.1"; // ESP32 AP IP address
-  bool isConnected = false; // WebSocket connection status
-
-  @override
-  void initState() {
-    super.initState();
-    connectWebSocket();
-  }
-
-  void connectWebSocket() {
-    String url = "ws://$esp32Ip:81"; // WebSocket URL
-    channel = IOWebSocketChannel.connect(url);
-
-    channel.stream.listen(
-      (message) {
-        var jsonResponse = jsonDecode(message);
-        if (jsonResponse.containsKey("frequency")) {
-          setState(() {
-            gridFrequency = "${jsonResponse['frequency']} Hz";
-            isConnected = true;
-          });
-        }
-      },
-      onError: (error) {
-        setState(() {
-          gridFrequency = "Disconnected";
-          isConnected = false;
-        });
-      },
-      onDone: () {
-        setState(() {
-          gridFrequency = "Disconnected";
-          isConnected = false;
-        });
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    channel.sink.close(); // Close WebSocket when leaving the page
-    super.dispose();
-  }
+  final WebSocketService webSocketService = WebSocketService();
 
   @override
   Widget build(BuildContext context) {
@@ -341,18 +296,33 @@ class _SystemPageState extends State<SystemPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Grid Frequency: $gridFrequency',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              StreamBuilder<String>(
+                                stream: webSocketService.frequencyStream, // ✅ Continuous Updates
+                                initialData: webSocketService.getFrequency(),
+                                builder: (context, snapshot) {
+                                  String gridFrequency = snapshot.data ?? "Loading...";
+                                  return Text(
+                                    'Grid Frequency: $gridFrequency',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  );
+                                },
                               ),
                               SizedBox(height: 10),
-                              Text(
-                                'Wi-Fi Status: ${isConnected ? "Connected" : "Disconnected"}',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: isConnected ? Colors.green : Colors.red,
-                                ),
+                              StreamBuilder<bool>(
+                                stream: Stream.periodic(Duration(seconds: 1))
+                                    .map((_) => webSocketService.getConnectionStatus()),
+                                initialData: webSocketService.getConnectionStatus(),
+                                builder: (context, snapshot) {
+                                  bool isConnected = snapshot.data ?? false;
+                                  return Text(
+                                    'Wi-Fi Status: ${isConnected ? "Connected" : "Disconnected"}',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: isConnected ? Colors.green : Colors.red,
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -419,15 +389,15 @@ class _SystemPageState extends State<SystemPage> {
           BottomNavigationBarItem(icon: Icon(Icons.system_update_alt), label: 'System'),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
-        currentIndex: 1, // System Page
+        currentIndex: 1, // ✅ Set to 1 for the System page
         onTap: (index) {
           if (index == 0) {
-            Navigator.push(
+            Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => ControlPage()),
             );
           } else if (index == 2) {
-            Navigator.push(
+            Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => SettingsPage()),
             );
@@ -437,7 +407,6 @@ class _SystemPageState extends State<SystemPage> {
     );
   }
 }
-
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
