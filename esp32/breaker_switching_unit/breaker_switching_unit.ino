@@ -19,6 +19,7 @@
 
 #include <WiFi.h>
 #include <WebServer.h>
+#include <WebSocketsServer.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,6 +31,7 @@ const char* apPassword = "12345678";
 
 // Server hosted on ESP32
 WebServer server(80);
+WebSocketsServer webSocket(81);
 
 // Global breakers structures
 Breakers currentBreakerStatus = {false, false, false, false};
@@ -43,17 +45,20 @@ void setup() {
   Serial.print("Main Breaker Unit IP Address: ");
   Serial.println(WiFi.softAPIP());
 
+  //---Set up HTTP server---
   // Define endpoint for breaker updates
   server.on("/breaker", HTTP_POST, handleBreakerRequest);
-
-    // Define endpoint for Frequency updates
+  // Define endpoint for Frequency updates
   server.on("/frequency", HTTP_POST, FrequencyRequest);
-
   // Define endpoint for frequency response settings
   server.on("/frequency_settings", HTTP_POST, handleFreqResponseSettings);
-
   server.begin();
   Serial.println("HTTP server started.");
+
+  //---Set up websocket server---
+  webSocket.begin();
+  webSocket.onEvent(handleWebSocketMessage);
+  Serial.println("WebSocket server started on port 81.");
 
   //---Set up pins---
   // Declare pins as output:

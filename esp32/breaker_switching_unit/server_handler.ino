@@ -83,6 +83,7 @@ void handleBreakerRequest() {
 void FrequencyRequest(){
   if (server.hasArg("frequency")){
     double frequency = server.arg("frequency").toDouble();
+    sendFrequencyUpdate(frequency);
     if (frequency <= 59.4){
       Serial.println("CRITICAL FREQUENCY DROP");
     } else{

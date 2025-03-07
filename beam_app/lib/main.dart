@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/io.dart';
 import 'dart:convert';
 
 void main() {
@@ -254,20 +255,52 @@ class SystemPage extends StatefulWidget {
 }
 
 class _SystemPageState extends State<SystemPage> {
-  // Placeholder for system information
-  String gridFrequency = "60 Hz";
+  String gridFrequency = "60 Hz"; // Default value
   String wifiStatus = "Connected";
+  late IOWebSocketChannel channel;
+  final String esp32Ip = "192.168.4.1"; // ESP32 AP IP address
+  bool isConnected = false; // WebSocket connection status
 
-  // Log of status changes
-  List<String> statusLog = [
-    "3:22 pm - 'Breaker 1' turned OFF",
-    "3:34 pm - 'Breaker 3' turned ON",
-    "3:56 pm - 'Breaker 4' turned OFF",
-    "4:48 pm - 'Breaker 1' turned ON",
-    "6:38 pm - 'Breaker 2' turned OFF",
-    "9:38 pm - 'Breaker 3' turned OFF",
-    "9:59 pm - 'Breaker 4' turned OFF",
-  ];
+  @override
+  void initState() {
+    super.initState();
+    connectWebSocket();
+  }
+
+  void connectWebSocket() {
+    String url = "ws://$esp32Ip:81"; // WebSocket URL
+    channel = IOWebSocketChannel.connect(url);
+
+    channel.stream.listen(
+      (message) {
+        var jsonResponse = jsonDecode(message);
+        if (jsonResponse.containsKey("frequency")) {
+          setState(() {
+            gridFrequency = "${jsonResponse['frequency']} Hz";
+            isConnected = true;
+          });
+        }
+      },
+      onError: (error) {
+        setState(() {
+          gridFrequency = "Disconnected";
+          isConnected = false;
+        });
+      },
+      onDone: () {
+        setState(() {
+          gridFrequency = "Disconnected";
+          isConnected = false;
+        });
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    channel.sink.close(); // Close WebSocket when leaving the page
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -276,10 +309,7 @@ class _SystemPageState extends State<SystemPage> {
         backgroundColor: Colors.teal.shade800,
         title: const Text(
           'System Info',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -317,8 +347,12 @@ class _SystemPageState extends State<SystemPage> {
                               ),
                               SizedBox(height: 10),
                               Text(
-                                'Wi-Fi Status: $wifiStatus',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                'Wi-Fi Status: ${isConnected ? "Connected" : "Disconnected"}',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: isConnected ? Colors.green : Colors.red,
+                                ),
                               ),
                             ],
                           ),
@@ -352,12 +386,12 @@ class _SystemPageState extends State<SystemPage> {
                               Divider(color: Colors.grey),
                               Expanded(
                                 child: ListView.builder(
-                                  itemCount: statusLog.length,
+                                  itemCount: 5, // Placeholder for log entries
                                   itemBuilder: (context, index) {
                                     return Padding(
                                       padding: const EdgeInsets.symmetric(vertical: 4.0),
                                       child: Text(
-                                        statusLog[index],
+                                        "Sample log entry ${index + 1}",
                                         style: TextStyle(fontSize: 16),
                                       ),
                                     );
@@ -385,7 +419,7 @@ class _SystemPageState extends State<SystemPage> {
           BottomNavigationBarItem(icon: Icon(Icons.system_update_alt), label: 'System'),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
-        currentIndex: 1, // Set to 1 for the System page
+        currentIndex: 1, // System Page
         onTap: (index) {
           if (index == 0) {
             Navigator.push(
@@ -466,7 +500,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: Could not connect to ESP32.")),
+        SnackBar(content: Text("Error: Could not connect to BEAM. Check server connection.")),
       );
     }
 
