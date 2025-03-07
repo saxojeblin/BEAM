@@ -37,6 +37,8 @@ WebSocketsServer webSocket(81);
 Breakers currentBreakerStatus = {false, false, false, false};
 Breakers freqResponseSettings = {false, false, false, false};
 
+unsigned long lastUpdateTime = 0;
+
 void setup() {
   //---Set up Wi-Fi server/access point---
   Serial.begin(115200);
@@ -74,6 +76,15 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  webSocket.loop();
+
+  // simulate freq update every 3s
+  // if (millis() - lastUpdateTime > 3000)
+  // {
+  //   float frequency = 59.5 + (random(0,10) / 10.0);
+  //   lastUpdateTime = millis();
+  //   sendFrequencyUpdate(frequency);
+  // }
 }
 
 void printBreakerStates()
