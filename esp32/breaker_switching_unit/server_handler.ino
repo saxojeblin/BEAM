@@ -17,6 +17,8 @@
 #include "config.h"
 #include <ArduinoJson.h>
 
+double previousFrequency = 60.0;
+
 void handleBreakerRequest() {
     if (server.hasArg("breaker") && server.hasArg("status")) {
       // Get breaker command info
@@ -82,12 +84,28 @@ void handleBreakerRequest() {
 
 void FrequencyRequest(){
   if (server.hasArg("frequency")){
+    // Get the grid frequency and send to the app
     double frequency = server.arg("frequency").toDouble();
     sendFrequencyUpdate(frequency);
+
+    // If the grid is unstable, alert the app to disable control and carry out response
     if (frequency <= 59.4){
+      // Send message to the app
+      String message = R"({"type": "event", "event": "frequency_drop", "message": "Critical Frequency Drop: Grid is unstable"})";
+      webSocket.broadcastTXT(message);
+
+      // Carry out automatic frequency drop response
+      // --code here--
       Serial.println("CRITICAL FREQUENCY DROP");
-    } else{
+    } else {
+      // Return to previous state before frequency drop event
+      if (previousFrequency <= 59.4)
+      {
+        String message = R"({"type": "event", "event": "frequency_restore", "message": "Grid frequency has returned to normal"})";
+        webSocket.broadcastTXT(message);
+      }
     Serial.println("Frequency = " + String(frequency));
+    previousFrequency = frequency;
     server.send(200, "text/plain", "Success");
     }
   } else {
