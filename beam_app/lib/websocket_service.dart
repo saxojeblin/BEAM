@@ -7,12 +7,19 @@ class WebSocketService {
   factory WebSocketService() => _instance;
 
   IOWebSocketChannel? channel;
-  final String esp32Ip = "192.168.4.1"; // ESP32 WebSocket Server IP
+  final String esp32Ip = "192.168.4.1";
   bool isConnected = false;
-  String lastFrequency = "60 Hz"; // Store last received frequency
+  String lastFrequency = "60 Hz";
 
-  final StreamController<String> _frequencyController =
-      StreamController<String>.broadcast(); // ✅ Keeps streaming live updates
+  final StreamController<String> _frequencyController = StreamController<String>.broadcast();
+  final StreamController<Map<String, dynamic>> _eventController = StreamController<Map<String, dynamic>>.broadcast();
+
+  // 🔒 Frequency status flags
+  bool frequencyLockActive = false;
+  bool frequencyResetPending = false;
+
+  Stream<String> get frequencyStream => _frequencyController.stream;
+  Stream<Map<String, dynamic>> get eventStream => _eventController.stream;
 
   WebSocketService._internal() {
     _connect();
@@ -23,30 +30,43 @@ class WebSocketService {
     try {
       channel = IOWebSocketChannel.connect(url);
       isConnected = true;
-      print("Connected to WebSocket Server!");
+      print("✅ Connected to WebSocket Server!");
 
       channel!.stream.listen(
         (message) {
-          var jsonResponse = jsonDecode(message);
+          final jsonResponse = jsonDecode(message);
+
+          // Update frequency
           if (jsonResponse.containsKey("frequency")) {
             lastFrequency = "${jsonResponse['frequency']} Hz";
-            _frequencyController.sink.add(lastFrequency); // ✅ Push real-time updates
-            print("Updated Frequency: $lastFrequency"); // Debugging output
+            _frequencyController.sink.add(lastFrequency);
+          }
+
+          // Handle events
+          if (jsonResponse['type'] == 'event') {
+            if (jsonResponse['event'] == 'frequency_drop') {
+              frequencyLockActive = true;
+              frequencyResetPending = false;
+            } else if (jsonResponse['event'] == 'frequency_restore') {
+              frequencyLockActive = true;
+              frequencyResetPending = true;
+            }
+            _eventController.sink.add(jsonResponse);
           }
         },
         onError: (error) {
-          print("WebSocket Error: $error");
+          print("❌ WebSocket Error: $error");
           isConnected = false;
           _reconnect();
         },
         onDone: () {
-          print("WebSocket Disconnected!");
+          print("🔌 WebSocket Disconnected");
           isConnected = false;
           _reconnect();
         },
       );
     } catch (e) {
-      print("WebSocket Connection Failed: $e");
+      print("⚠️ WebSocket Connection Failed: $e");
       isConnected = false;
       _reconnect();
     }
@@ -55,15 +75,22 @@ class WebSocketService {
   void _reconnect() {
     Future.delayed(Duration(seconds: 3), () {
       if (!isConnected) {
-        print("Reconnecting to WebSocket...");
+        print("🔁 Attempting to reconnect...");
         _connect();
       }
     });
   }
 
-  Stream<String> get frequencyStream => _frequencyController.stream; // ✅ Ensure real-time updates
-
   String getFrequency() => lastFrequency;
-
   bool getConnectionStatus() => isConnected;
+
+  // 👇 Access last known frequency status
+  bool isFrequencyCritical() => frequencyLockActive;
+  bool isResetPending() => frequencyResetPending;
+
+  void dispose() {
+    _frequencyController.close();
+    _eventController.close();
+    channel?.sink.close();
+  }
 }
