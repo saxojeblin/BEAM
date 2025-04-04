@@ -78,7 +78,6 @@ void setup() {
   X_AXIS_POWER_SHUTDOWN();
   Y_AXIS_POWER_SHUTDOWN();
 
-
   printBreakerStates();
 
   Serial.println("Set up complete! - awaiting commands...");
@@ -96,11 +95,12 @@ void loop() {
   //   sendFrequencyUpdate(frequency);
   // }
 
-  if (Serial.available() > 0)
-  {
-    float userInput = Serial.parseFloat();
-    FrequencyRequestTest(userInput);
-  }
+  // simulate frequency request manual values
+  // if (Serial.available() > 0)
+  // {
+  //   float userInput = Serial.parseFloat();
+  //   FrequencyRequestTest(userInput);
+  // }
 }
 
 void printBreakerStates()

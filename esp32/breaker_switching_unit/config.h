@@ -21,8 +21,9 @@
 // stepper motor:
 #define dirPin 22
 #define stepPin 21
-#define steps 2536  
+
 //step distance is 20.5 mm per 2000 revolutions, and distance between each breaker is 26mm
+#define steps 2536
 
 #define step1 1
 #define step2 2
@@ -35,7 +36,6 @@
 // dc motor
 #define in1 27  
 #define in2 26
-
 
 // Breakers struct containing on/off setting for each breaker
 struct Breakers {

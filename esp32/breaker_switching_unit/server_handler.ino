@@ -28,61 +28,34 @@ void handleBreakerRequest() {
       // Determine which breaker we are flipping
       switch (breakerIndex) {
         case 1:
+          // Flip breaker 1
           Serial.println("Attemping to flip breaker 1...");
-
-            if(status) 
-            {
-                ona(step1);     
-            }
-            else
-            {
-                offa(step1); 
-            }
-            
+          if(status) ona(step1);
+          else offa(step1);
           // Update new breaker status
           currentBreakerStatus.breaker1 = !currentBreakerStatus.breaker1;
           break;
         case 2:
+          // Flip breaker 2
           Serial.println("Attemping to flip breaker 2...");
-            if(status) 
-            {
-                ona(step2);     
-            }
-            else
-            {
-                offa(step2); 
-            }
-            
+          if(status) ona(step2);
+          else offa(step2);
           // Update new breaker status
           currentBreakerStatus.breaker2 = !currentBreakerStatus.breaker2;
           break;
         case 3:
+          // Flip breaker 3
           Serial.println("Attemping to flip breaker 3...");
-            
-            if(status) 
-            {
-                onb(step1);     
-            }
-            else
-            {
-                offb(step1); 
-            }
-            
+          if(status) onb(step1);
+          else offb(step1);
           // Update new breaker status
           currentBreakerStatus.breaker3 = !currentBreakerStatus.breaker3;
           break;
         case 4:
+          // Flip breaker 4
           Serial.println("Attemping to flip breaker 4...");
-            
-            if(status) 
-            {
-                onb(step2);     
-            }
-            else
-            {
-                offb(step2); 
-            }
-            
+          if(status) onb(step2);
+          else offb(step2);
           // Update new breaker status
           currentBreakerStatus.breaker4 = !currentBreakerStatus.breaker4;
           break;
@@ -113,23 +86,24 @@ void FrequencyRequest(){
 
     // If the grid is unstable, alert the app to disable control and carry out response
     if (frequency <= 59.4){
+      previousFrequency = frequency;
       // Send message to the app
       String message = R"({"type": "event", "event": "frequency_drop", "message": "Critical Frequency Drop: Grid is unstable"})";
       webSocket.broadcastTXT(message);
 
       // Carry out automatic frequency drop response
-      // --code here--
+      automaticFrequencyResponse();
       Serial.println("CRITICAL FREQUENCY DROP");
     } else {
       // Return to previous state before frequency drop event
       if (previousFrequency <= 59.4)
       {
+        previousFrequency = frequency;
         Serial.println("Frequency back to normal, alerting app.");
         String message = R"({"type": "event", "event": "frequency_restore", "message": "Grid frequency has returned to normal"})";
         webSocket.broadcastTXT(message);
       }
     Serial.println("Frequency = " + String(frequency));
-    previousFrequency = frequency;
     server.send(200, "text/plain", "Success");
     }
   } else {
@@ -157,7 +131,7 @@ void FrequencyRequestTest(float frequency){
     webSocket.broadcastTXT(message);
 
     // Carry out automatic frequency drop response
-    // --code here--
+    automaticFrequencyResponse();
     Serial.println("CRITICAL FREQUENCY DROP");
   } else {
     // Return to previous state before frequency drop event
@@ -213,4 +187,10 @@ void restoreBreakerStates()
   delay(1000);
   delay(1000);
   server.send(200, "text/plain", "Breakers restored");
+}
+
+void automaticFrequencyResponse()
+{
+  //write automatic frequency response here
+  //save the states of the breakers to use in restoreBreakerStates()
 }
