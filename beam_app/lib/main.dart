@@ -400,117 +400,63 @@ class _SystemPageState extends State<SystemPage> {
         ),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.teal.shade300, Colors.cyan.shade600],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.teal.shade300, Colors.cyan.shade600],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Card(
+              color: Colors.grey.shade100,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
               ),
-              child: Column(
-                children: [
-                  Expanded(
-                    flex: 1,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Card(
-                        color: Colors.grey.shade100,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        elevation: 4,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              StreamBuilder<String>(
-                                stream: webSocketService.frequencyStream, // ✅ Continuous Updates
-                                initialData: webSocketService.getFrequency(),
-                                builder: (context, snapshot) {
-                                  String gridFrequency = snapshot.data ?? "Loading...";
-                                  return Text(
-                                    'Grid Frequency: $gridFrequency',
-                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                  );
-                                },
-                              ),
-                              SizedBox(height: 10),
-                              StreamBuilder<bool>(
-                                stream: Stream.periodic(Duration(seconds: 1))
-                                    .map((_) => webSocketService.getConnectionStatus()),
-                                initialData: webSocketService.getConnectionStatus(),
-                                builder: (context, snapshot) {
-                                  bool isConnected = snapshot.data ?? false;
-                                  return Text(
-                                    'Wi-Fi Status: ${isConnected ? "Connected" : "Disconnected"}',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: isConnected ? Colors.green : Colors.red,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+              elevation: 4,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    StreamBuilder<String>(
+                      stream: webSocketService.frequencyStream,
+                      initialData: webSocketService.getFrequency(),
+                      builder: (context, snapshot) {
+                        String gridFrequency = snapshot.data ?? "Loading...";
+                        return Text(
+                          'Grid Frequency: $gridFrequency',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        );
+                      },
                     ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Card(
-                        color: Colors.grey.shade100,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        elevation: 4,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Status Log',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.teal.shade800,
-                                ),
-                              ),
-                              Divider(color: Colors.grey),
-                              Expanded(
-                                child: ListView.builder(
-                                  itemCount: 5, // Placeholder for log entries
-                                  itemBuilder: (context, index) {
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                      child: Text(
-                                        "Sample log entry ${index + 1}",
-                                        style: TextStyle(fontSize: 16),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
+                    SizedBox(height: 10),
+                    StreamBuilder<bool>(
+                      stream: Stream.periodic(Duration(seconds: 1))
+                          .map((_) => webSocketService.getConnectionStatus()),
+                      initialData: webSocketService.getConnectionStatus(),
+                      builder: (context, snapshot) {
+                        bool isConnected = snapshot.data ?? false;
+                        return Text(
+                          'Wi-Fi Status: ${isConnected ? "Connected" : "Disconnected"}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isConnected ? Colors.green : Colors.red,
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ],
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.grey.shade900,
@@ -521,7 +467,7 @@ class _SystemPageState extends State<SystemPage> {
           BottomNavigationBarItem(icon: Icon(Icons.system_update_alt), label: 'System'),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
-        currentIndex: 1, // ✅ Set to 1 for the System page
+        currentIndex: 1,
         onTap: (index) {
           if (index == 0) {
             Navigator.pushReplacement(
