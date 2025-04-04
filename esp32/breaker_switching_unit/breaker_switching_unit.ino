@@ -78,6 +78,7 @@ void setup() {
   pinMode(STBY, OUTPUT);
   pinMode(X_AXIS_REG, OUTPUT);
   pinMode(Y_AXIS_REG, OUTPUT);
+  pinMode(UVLO, INPUT);
   X_AXIS_POWER_SHUTDOWN();
   Y_AXIS_POWER_SHUTDOWN();
 
@@ -89,6 +90,7 @@ void setup() {
 void loop() {
   server.handleClient();
   webSocket.loop();
+  CHECK_UVLO();
 
   // simulate freq update every 3s
   // if (millis() - lastUpdateTime > 3000)

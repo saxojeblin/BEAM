@@ -35,7 +35,7 @@ class ControlPage extends StatefulWidget {
 }
 
 class _ControlPageState extends State<ControlPage> with SingleTickerProviderStateMixin {
-  List<bool> breakerStatus = [true, true, true, true];
+  late List<bool> breakerStatus;
   final String esp32Ip = "192.168.4.1";
   final String esp32Port = "80";
 
@@ -52,12 +52,12 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
+    breakerStatus = _webSocketService.getBreakerStates();
 
-  _iconAnimationController = AnimationController(
-    vsync: this,
-    duration: Duration(milliseconds: 500),
-  )..repeat(reverse: true); // Pulses in and out
-
+    _iconAnimationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 500),
+    )..repeat(reverse: true);
 
     _webSocketService.eventStream.listen((event) {
       if (event['event'] == 'frequency_drop') {
@@ -112,6 +112,7 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
       if (response.statusCode == 200) {
         setState(() {
           breakerStatus[breakerIndex] = status;
+          _webSocketService.updateBreakerState(breakerIndex, status);
         });
       } else {
         setState(() {
@@ -133,44 +134,42 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
     });
   }
 
-Future<void> sendRestoreCommand() async {
-  final url = "http://$esp32Ip:$esp32Port/restore_breakers";
+  Future<void> sendRestoreCommand() async {
+    final url = "http://$esp32Ip:$esp32Port/restore_breakers";
 
-  setState(() {
-    isLoading = true;
-    loadingMessage = "Restoring breakers to previous state...";
-  });
+    setState(() {
+      isLoading = true;
+      loadingMessage = "Restoring breakers to previous state...";
+    });
 
-  try {
-    final response = await http.post(Uri.parse(url)).timeout(Duration(seconds: 40));
+    try {
+      final response = await http.post(Uri.parse(url)).timeout(Duration(seconds: 40));
 
-    if (response.statusCode == 200) {
-      // ✅ Clear overlay and global flags
-      _webSocketService.clearFrequencyStatus();
-      setState(() {
-        isFrequencyCritical = false;
-        resetPrompt = false;
-      });
+      if (response.statusCode == 200) {
+        _webSocketService.clearFrequencyStatus();
+        setState(() {
+          isFrequencyCritical = false;
+          resetPrompt = false;
+        });
 
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Breakers restored successfully.")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Restore failed: ${response.body}")),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Breakers restored successfully.")),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Restore failed: ${response.body}")),
+        SnackBar(content: Text("Error: Could not restore breakers")),
       );
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error: Could not restore breakers")),
-    );
+
+    setState(() {
+      isLoading = false;
+    });
   }
-
-  setState(() {
-    isLoading = false;
-  });
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -229,7 +228,9 @@ Future<void> sendRestoreCommand() async {
           ),
         ),
 
-        // Full-Screen Loading Overlay
+        if (isFrequencyCritical && !isLoading)
+          _buildOverlay(),
+
         if (isLoading)
           Positioned.fill(
             child: Container(
@@ -255,128 +256,125 @@ Future<void> sendRestoreCommand() async {
               ),
             ),
           ),
-
-        // Frequency Drop Warning Overlay
-        if (isFrequencyCritical)
-          Positioned(
-            top: MediaQuery.of(context).padding.top + kToolbarHeight,
-            left: 0,
-            right: 0,
-            bottom: kBottomNavigationBarHeight,
-            child: Container(
-              color: Colors.black.withOpacity(0.75),
-              child: Center(
-                child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ScaleTransition(
-                            scale: Tween<double>(begin: 1.0, end: 1.3).animate(
-                              CurvedAnimation(parent: _iconAnimationController, curve: Curves.easeInOut),
-                            ),
-                            child: Icon(
-                              resetPrompt ? Icons.check_circle : Icons.warning,
-                              color: resetPrompt ? Colors.greenAccent : Colors.redAccent,
-                              size: 50,
-                            ),
-                          ),
-                          SizedBox(height: 15),
-                          Text(
-                            resetPrompt
-                                ? "Grid Stable"
-                                : "Grid Unstable - Frequency Drop",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              decoration: TextDecoration.none,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            resetPrompt
-                                ? "Grid has stabilized.\nPlease restore breakers to resume control."
-                                : "Grid instability detected.\nWaiting for grid to stabilize...",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
-                              decoration: TextDecoration.none,
-                            ),
-                          ),
-                          SizedBox(height: 20),
-                          if (resetPrompt)
-                            ElevatedButton(
-                              onPressed: sendRestoreCommand,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.teal.shade800,
-                                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                              ),
-                              child: Text(
-                                "Restore Breakers",
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                        ],
-                      ),
-
-              ),
-            ),
-          ),
       ],
     );
   }
 
-Widget _buildBreakerTile(int index) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
-    child: Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      elevation: 4,
-      color: Colors.grey.shade100,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-        title: RichText(
-          text: TextSpan(
+  Widget _buildOverlay() {
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + kToolbarHeight,
+      left: 0,
+      right: 0,
+      bottom: kBottomNavigationBarHeight,
+      child: Container(
+        color: Colors.black.withOpacity(0.75),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              TextSpan(
-                text: 'Breaker ${index + 1} Status: ',
-                style: TextStyle(fontSize: 18, color: Colors.black),
+              ScaleTransition(
+                scale: Tween<double>(begin: 1.0, end: 1.3).animate(
+                  CurvedAnimation(parent: _iconAnimationController, curve: Curves.easeInOut),
+                ),
+                child: Icon(
+                  resetPrompt ? Icons.check_circle : Icons.warning,
+                  color: resetPrompt ? Colors.greenAccent : Colors.redAccent,
+                  size: 50,
+                ),
               ),
-              TextSpan(
-                text: breakerStatus[index] ? 'ON' : 'OFF',
+              SizedBox(height: 15),
+              Text(
+                resetPrompt ? "Grid Stable" : "Grid Unstable - Frequency Drop",
+                textAlign: TextAlign.center,
                 style: TextStyle(
+                  color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: breakerStatus[index] ? Colors.cyan.shade600 : Colors.amber.shade700,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                resetPrompt
+                    ? "Grid has stabilized.\nPlease restore breakers to resume control."
+                    : "Grid instability detected.\nWaiting for grid to stabilize...",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+              SizedBox(height: 20),
+              if (resetPrompt)
+                ElevatedButton(
+                  onPressed: sendRestoreCommand,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.teal.shade800,
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  child: Text(
+                    "Restore Breakers",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBreakerTile(int index) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        elevation: 4,
+        color: Colors.grey.shade100,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+          title: RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: 'Breaker ${index + 1} Status: ',
+                  style: TextStyle(fontSize: 18, color: Colors.black),
+                ),
+                TextSpan(
+                  text: breakerStatus[index] ? 'ON' : 'OFF',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: breakerStatus[index] ? Colors.cyan.shade600 : Colors.amber.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                breakerStatus[index] ? Icons.check_circle : Icons.cancel,
+                color: breakerStatus[index] ? Colors.cyan.shade600 : Colors.amber.shade700,
+              ),
+              AbsorbPointer(
+                absorbing: isLoading || isFrequencyCritical,
+                child: Switch(
+                  value: breakerStatus[index],
+                  onChanged: (value) => sendBreakerStatus(index, value),
+                  activeColor: Colors.cyan.shade600,
+                  inactiveThumbColor: Colors.amber.shade700,
                 ),
               ),
             ],
           ),
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              breakerStatus[index] ? Icons.check_circle : Icons.cancel,
-              color: breakerStatus[index] ? Colors.cyan.shade600 : Colors.amber.shade700,
-            ),
-            AbsorbPointer( // 👈 Prevents visual flicker during loading
-              absorbing: isLoading || isFrequencyCritical,
-              child: Switch(
-                value: breakerStatus[index],
-                onChanged: (value) => sendBreakerStatus(index, value),
-                activeColor: Colors.cyan.shade600,
-                inactiveThumbColor: Colors.amber.shade700,
-              ),
-            ),
-          ],
-        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class SystemPage extends StatefulWidget {
@@ -447,6 +445,26 @@ class _SystemPageState extends State<SystemPage> {
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: isConnected ? Colors.green : Colors.red,
+                          ),
+                        );
+                      },
+                    ),
+                    SizedBox(height: 10),
+                    StreamBuilder<String>(
+                      stream: webSocketService.batteryStatusStream,
+                      initialData: webSocketService.getBatteryStatus(),
+                      builder: (context, snapshot) {
+                        String batteryStatus = snapshot.data ?? "Unknown";
+                        return Text(
+                          'Battery Status: $batteryStatus',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: batteryStatus == "Charged"
+                                ? Colors.green
+                                : batteryStatus == "Dead"
+                                    ? Colors.red
+                                    : Colors.grey,
                           ),
                         );
                       },

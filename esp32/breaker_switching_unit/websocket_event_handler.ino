@@ -43,3 +43,12 @@ void sendFrequencyUpdate(float frequency) {
     webSocket.broadcastTXT(response);
     Serial.println("Sent frequency update: " + response);
 }
+
+void sendBatteryStatus(bool batteryIsCharged) {
+  StaticJsonDocument<100> doc;
+  doc["battery"] = batteryIsCharged ? "charged" : "dead";
+
+  String message;
+  serializeJson(doc, message);
+  webSocket.broadcastTXT(message);
+}

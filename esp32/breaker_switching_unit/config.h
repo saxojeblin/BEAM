@@ -33,6 +33,9 @@
 #define X_AXIS_REG 14
 #define Y_AXIS_REG 23
 
+#define UVLO 35
+#define X_AXIS_CURRENT 33
+
 // dc motor
 #define in1 27  
 #define in2 26

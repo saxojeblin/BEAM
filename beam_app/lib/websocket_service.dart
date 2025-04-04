@@ -6,10 +6,15 @@ class WebSocketService {
   static final WebSocketService _instance = WebSocketService._internal();
   factory WebSocketService() => _instance;
 
+  List<bool> breakerStates = [true, true, true, true];
+
   IOWebSocketChannel? channel;
   final String esp32Ip = "192.168.4.1";
   bool isConnected = false;
   String lastFrequency = "60 Hz";
+
+  String _batteryStatus = "Unknown";
+  final StreamController<String> _batteryStatusController = StreamController<String>.broadcast();
 
   final StreamController<String> _frequencyController = StreamController<String>.broadcast();
   final StreamController<Map<String, dynamic>> _eventController = StreamController<Map<String, dynamic>>.broadcast();
@@ -20,6 +25,9 @@ class WebSocketService {
 
   Stream<String> get frequencyStream => _frequencyController.stream;
   Stream<Map<String, dynamic>> get eventStream => _eventController.stream;
+
+  Stream<String> get batteryStatusStream => _batteryStatusController.stream;
+  String getBatteryStatus() => _batteryStatus;
 
   WebSocketService._internal() {
     _connect();
@@ -40,6 +48,12 @@ class WebSocketService {
           if (jsonResponse.containsKey("frequency")) {
             lastFrequency = "${jsonResponse['frequency']} Hz";
             _frequencyController.sink.add(lastFrequency);
+          }
+
+          // Update battery status
+          if (jsonResponse.containsKey("battery")) {
+            _batteryStatus = jsonResponse['battery'] == "charged" ? "Charged" : "Dead";
+            _batteryStatusController.sink.add(_batteryStatus);
           }
 
           // Handle events
@@ -72,6 +86,14 @@ class WebSocketService {
     }
   }
 
+  void updateBreakerState(int index, bool value) {
+    if (index >= 0 && index < breakerStates.length) {
+      breakerStates[index] = value;
+    }
+  }
+
+  List<bool> getBreakerStates() => List.from(breakerStates);
+
   void _reconnect() {
     Future.delayed(Duration(seconds: 3), () {
       if (!isConnected) {
@@ -92,6 +114,7 @@ class WebSocketService {
     _frequencyController.close();
     _eventController.close();
     channel?.sink.close();
+    _batteryStatusController.close();
   }
 
   void clearFrequencyStatus() {

@@ -30,16 +30,16 @@ void handleBreakerRequest() {
         case 1:
           // Flip breaker 1
           Serial.println("Attemping to flip breaker 1...");
-          if(status) ona(step1);
-          else offa(step1);
+          if(status) ona(step2);
+          else offa(step2);
           // Update new breaker status
           currentBreakerStatus.breaker1 = !currentBreakerStatus.breaker1;
           break;
         case 2:
           // Flip breaker 2
           Serial.println("Attemping to flip breaker 2...");
-          if(status) ona(step2);
-          else offa(step2);
+          if(status) ona(step1);
+          else offa(step1);
           // Update new breaker status
           currentBreakerStatus.breaker2 = !currentBreakerStatus.breaker2;
           break;
