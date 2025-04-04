@@ -32,11 +32,11 @@ void handleBreakerRequest() {
 
             if(status) 
             {
-                ona(s1);     
+                ona(step1);     
             }
             else
             {
-                offa(s1); 
+                offa(step1); 
             }
             
           // Update new breaker status
@@ -46,11 +46,11 @@ void handleBreakerRequest() {
           Serial.println("Attemping to flip breaker 2...");
             if(status) 
             {
-                ona(s2);     
+                ona(step2);     
             }
             else
             {
-                offa(s2); 
+                offa(step2); 
             }
             
           // Update new breaker status
@@ -61,11 +61,11 @@ void handleBreakerRequest() {
             
             if(status) 
             {
-                onb(s1);     
+                onb(step1);     
             }
             else
             {
-                offb(s1); 
+                offb(step1); 
             }
             
           // Update new breaker status
@@ -76,11 +76,11 @@ void handleBreakerRequest() {
             
             if(status) 
             {
-                onb(s2);     
+                onb(step2);     
             }
             else
             {
-                offb(s2); 
+                offb(step2); 
             }
             
           // Update new breaker status
