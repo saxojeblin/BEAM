@@ -17,19 +17,25 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+
 // stepper motor:
-#define dirPin 18
-#define stepPin 19
-#define stepsPerRevolution 400
-#define revolutions 15
-#define pos1 5
-#define pos2 10
-#define pos3 15
-#define pos4 20
+#define dirPin 22
+#define stepPin 21
+#define steps 2536  
+//step distance is 20.5 mm per 2000 revolutions, and distance between each breaker is 26mm
+
+#define s1 1
+#define s2 2
+
+#define EN 16
+#define STBY 32
+#define X_AXIS_REG 14
+#define Y_AXIS_REG 23
 
 // dc motor
-#define in1 16
-#define in2 17
+#define in1 27  
+#define in2 26
+
 
 // Breakers struct containing on/off setting for each breaker
 struct Breakers {
