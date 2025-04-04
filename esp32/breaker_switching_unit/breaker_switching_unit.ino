@@ -54,6 +54,9 @@ void setup() {
   server.on("/frequency", HTTP_POST, FrequencyRequest);
   // Define endpoint for frequency response settings
   server.on("/frequency_settings", HTTP_POST, handleFreqResponseSettings);
+  // Define endpoint for restoring breaker states after frequency drop
+  server.on("/restore_breakers", HTTP_POST, restoreBreakerStates);
+
   server.begin();
   Serial.println("HTTP server started.");
 
@@ -85,6 +88,12 @@ void loop() {
   //   lastUpdateTime = millis();
   //   sendFrequencyUpdate(frequency);
   // }
+
+  if (Serial.available() > 0)
+  {
+    float userInput = Serial.parseFloat();
+    FrequencyRequestTest(userInput);
+  }
 }
 
 void printBreakerStates()

@@ -101,6 +101,7 @@ void FrequencyRequest(){
       // Return to previous state before frequency drop event
       if (previousFrequency <= 59.4)
       {
+        Serial.println("Frequency back to normal, alerting app.");
         String message = R"({"type": "event", "event": "frequency_restore", "message": "Grid frequency has returned to normal"})";
         webSocket.broadcastTXT(message);
       }
@@ -111,6 +112,41 @@ void FrequencyRequest(){
   } else {
     server.send(400, "text/plain", "Missing arguments");
     Serial.println("ERROR: Missing arguments in frequency request!");
+  }
+}
+
+void FrequencyRequestTest(float frequency){
+  // send serial frequency
+  // sending 0 bug fix
+  if (frequency == 0)
+  {
+    return;
+  }
+  sendFrequencyUpdate(frequency);
+  Serial.println("previous frequency = " + String(previousFrequency));
+
+  // If the grid is unstable, alert the app to disable control and carry out response
+  if (frequency <= 59.4){
+    previousFrequency = frequency;
+    // Send message to the app
+    Serial.println("Sending crit freq drop to app!!!");
+    String message = R"({"type": "event", "event": "frequency_drop", "message": "Critical Frequency Drop: Grid is unstable"})";
+    webSocket.broadcastTXT(message);
+
+    // Carry out automatic frequency drop response
+    // --code here--
+    Serial.println("CRITICAL FREQUENCY DROP");
+  } else {
+    // Return to previous state before frequency drop event
+    if (previousFrequency <= 59.4)
+    {
+      previousFrequency = frequency;
+      printf("Frequency back to normal! Alerting app.");
+      String message = R"({"type": "event", "event": "frequency_restore", "message": "Grid frequency has returned to normal"})";
+      webSocket.broadcastTXT(message);
+    }
+  Serial.println("Frequency = " + String(frequency));
+  server.send(200, "text/plain", "Success");
   }
 }
   
@@ -143,4 +179,15 @@ void handleFreqResponseSettings() {
   } else {
     server.send(400, "application/json", "{\"status\": \"error\", \"message\": \"No JSON received\"}");
   }
+}
+
+void restoreBreakerStates()
+{
+  // write code here to restore breaker states 
+  // based on the stored freq response settings
+  Serial.println("Reverting breakers to original states.");
+  delay(1000);
+  delay(1000);
+  delay(1000);
+  server.send(200, "text/plain", "Breakers restored");
 }
