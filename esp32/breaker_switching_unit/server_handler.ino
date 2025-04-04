@@ -29,37 +29,60 @@ void handleBreakerRequest() {
       switch (breakerIndex) {
         case 1:
           Serial.println("Attemping to flip breaker 1...");
-          // Goes to switch 1
-          moveStepperForward(pos1);
-          switchDCMotor();
-          moveStepperBackward(pos1);
+
+            if(status) 
+            {
+                ona(s1);     
+            }
+            else
+            {
+                offa(s1); 
+            }
+            
           // Update new breaker status
           currentBreakerStatus.breaker1 = !currentBreakerStatus.breaker1;
           break;
         case 2:
           Serial.println("Attemping to flip breaker 2...");
-          // Goes to switch 2
-          moveStepperForward(pos2);
-          switchDCMotor();
-          moveStepperBackward(pos2);
+            if(status) 
+            {
+                ona(s2);     
+            }
+            else
+            {
+                offa(s2); 
+            }
+            
           // Update new breaker status
           currentBreakerStatus.breaker2 = !currentBreakerStatus.breaker2;
           break;
         case 3:
           Serial.println("Attemping to flip breaker 3...");
-          // Goes to switch 3
-          moveStepperForward(pos3);
-          switchDCMotor();
-          moveStepperBackward(pos3);
+            
+            if(status) 
+            {
+                onb(s1);     
+            }
+            else
+            {
+                offb(s1); 
+            }
+            
           // Update new breaker status
           currentBreakerStatus.breaker3 = !currentBreakerStatus.breaker3;
           break;
         case 4:
           Serial.println("Attemping to flip breaker 4...");
-          // Goes to switch 4
-          moveStepperForward(pos4);
-          switchDCMotor();
-          moveStepperBackward(pos4);
+            
+            if(status) 
+            {
+                onb(s2);     
+            }
+            else
+            {
+                offb(s2); 
+            }
+            
           // Update new breaker status
           currentBreakerStatus.breaker4 = !currentBreakerStatus.breaker4;
           break;
