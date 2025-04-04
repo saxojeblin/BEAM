@@ -47,5 +47,6 @@ struct Breakers {
 
 extern Breakers currentBreakerStatus;
 extern Breakers freqResponseSettings;
+extern Breakers prevBreakerStates;
 
 #endif

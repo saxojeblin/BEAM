@@ -183,14 +183,60 @@ void restoreBreakerStates()
   // write code here to restore breaker states 
   // based on the stored freq response settings
   Serial.println("Reverting breakers to original states.");
-  delay(1000);
-  delay(1000);
-  delay(1000);
+  if (currentBreakerStatus.breaker1 != prevBreakerStates.breaker1) {
+    ona(step1);
+    currentBreakerStatus.breaker1 = !currentBreakerStatus.breaker1;
+  }
+  if (currentBreakerStatus.breaker2 != prevBreakerStates.breaker2) {
+    ona(step2);
+    currentBreakerStatus.breaker2 = !currentBreakerStatus.breaker2;
+  }
+  if (currentBreakerStatus.breaker3 != prevBreakerStates.breaker3) {
+    onb(step1);
+    currentBreakerStatus.breaker3 = !currentBreakerStatus.breaker3;
+  }
+  if (currentBreakerStatus.breaker4 != prevBreakerStates.breaker4) {
+    onb(step2);
+    currentBreakerStatus.breaker4 = !currentBreakerStatus.breaker4;
+  }
   server.send(200, "text/plain", "Breakers restored");
 }
 
 void automaticFrequencyResponse()
 {
-  //write automatic frequency response here
   //save the states of the breakers to use in restoreBreakerStates()
+  prevBreakerStates.breaker1 = currentBreakerStatus.breaker1;
+  prevBreakerStates.breaker2 = currentBreakerStatus.breaker2;
+  prevBreakerStates.breaker3 = currentBreakerStatus.breaker3;
+  prevBreakerStates.breaker4 = currentBreakerStatus.breaker4;
+
+  // flip desired breakers off
+  if (currentBreakerStatus.breaker1 && freqResponseSettings.breaker1) {
+    offa(step1);
+    currentBreakerStatus.breaker1 = !currentBreakerStatus.breaker1;
+  }
+  if (currentBreakerStatus.breaker2 && freqResponseSettings.breaker2) {
+    offa(step2);
+    currentBreakerStatus.breaker2 = !currentBreakerStatus.breaker2;
+  }
+  if (currentBreakerStatus.breaker3 && freqResponseSettings.breaker3) {
+    offb(step1);
+    currentBreakerStatus.breaker3 = !currentBreakerStatus.breaker3;
+  }
+  if (currentBreakerStatus.breaker4 && freqResponseSettings.breaker4) {
+    offb(step2);
+    currentBreakerStatus.breaker4 = !currentBreakerStatus.breaker4;
+  }
+}
+
+void handleGetFrequencySettings() {
+  StaticJsonDocument<200> doc;
+  doc["breaker1"] = freqResponseSettings.breaker1;
+  doc["breaker2"] = freqResponseSettings.breaker2;
+  doc["breaker3"] = freqResponseSettings.breaker3;
+  doc["breaker4"] = freqResponseSettings.breaker4;
+
+  String response;
+  serializeJson(doc, response);
+  server.send(200, "application/json", response);
 }

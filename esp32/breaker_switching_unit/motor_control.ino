@@ -46,7 +46,7 @@ void moveStepperBackward(int stepsMultiplier) {
   }
 }
 
-void switchON() {         //EXTENDS (ON)
+void switchOFF() {         //EXTENDS (ON)
 
   X_AXIS_POWER_ON();
 
@@ -61,78 +61,78 @@ void switchON() {         //EXTENDS (ON)
 
 }
 
-void switchOFF() {         //RETRACTS (OFF)
+void switchON() {         //RETRACTS (OFF)
 
   X_AXIS_POWER_ON();
 
   digitalWrite(in1, LOW);
   digitalWrite(in2, HIGH); 
-  delay(500);
+  delay(900);
   digitalWrite(in1, HIGH);
   digitalWrite(in2, LOW); 
-  delay(500);
+  delay(900);
   
   X_AXIS_POWER_SHUTDOWN();
 
 }
 
-void ona(int stepper) {          //ON switch 1&2 function
+void offa(int stepper) {          //ON switch 1&2 function
 
   X_AXIS_POWER_ON();
   Y_AXIS_POWER_ON();
 
   digitalWrite(in1, LOW);
   digitalWrite(in2, HIGH);
-  delay(2000);
+  //delay(2000);
   moveStepperForward(stepper);
-  switchON();
+  switchOFF();
   moveStepperBackward(stepper);
 
   X_AXIS_POWER_SHUTDOWN();
   Y_AXIS_POWER_SHUTDOWN();
 }
-void onb(int stepper) {          //ON switch 3&4 function
+void offb(int stepper) {          //ON switch 3&4 function
   
   X_AXIS_POWER_ON();
   Y_AXIS_POWER_ON();
 
   digitalWrite(in1, LOW);
   digitalWrite(in2, HIGH);
-  delay(2000);
+  //delay(2000);
   moveStepperBackward(stepper);
-  switchON();
+  switchOFF();
   moveStepperForward(stepper);
 
   X_AXIS_POWER_SHUTDOWN();
   Y_AXIS_POWER_SHUTDOWN();
 }
 
-void offa(int stepper) {         //OFF switch 1&2 function
+void ona(int stepper) {         //OFF switch 1&2 function
   
   X_AXIS_POWER_ON();
   Y_AXIS_POWER_ON();
 
   digitalWrite(in1, HIGH);
   digitalWrite(in2, LOW);
-  delay(2000);
+  //delay(2000);
   moveStepperForward(stepper);
-  switchOFF();
+  switchON();
   moveStepperBackward(stepper);
 
   X_AXIS_POWER_SHUTDOWN();
   Y_AXIS_POWER_SHUTDOWN();
   }
 
-void offb(int stepper) {         //OFF switch 3&4 function
+void onb(int stepper) {         //OFF switch 3&4 function
   
   X_AXIS_POWER_ON();
   Y_AXIS_POWER_ON();
 
   digitalWrite(in1, HIGH);
   digitalWrite(in2, LOW);
-  delay(2000);
+  //delay(2000);
   moveStepperBackward(stepper);
-  switchOFF();
+  switchON();
   moveStepperForward(stepper);
 
   X_AXIS_POWER_SHUTDOWN();

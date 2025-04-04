@@ -35,7 +35,7 @@ class ControlPage extends StatefulWidget {
 }
 
 class _ControlPageState extends State<ControlPage> with SingleTickerProviderStateMixin {
-  List<bool> breakerStatus = [false, false, false, false];
+  List<bool> breakerStatus = [true, true, true, true];
   final String esp32Ip = "192.168.4.1";
   final String esp32Port = "80";
 
@@ -133,45 +133,44 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
     });
   }
 
-  Future<void> sendRestoreCommand() async {
-    final url = "http://$esp32Ip:$esp32Port/restore_breakers";
+Future<void> sendRestoreCommand() async {
+  final url = "http://$esp32Ip:$esp32Port/restore_breakers";
 
-    // Hide overlay and show loading screen
-    setState(() {
-      isFrequencyCritical = false;
-      isLoading = true;
-      loadingMessage = "Restoring breakers to previous state...";
-    });
+  setState(() {
+    isLoading = true;
+    loadingMessage = "Restoring breakers to previous state...";
+  });
 
-    try {
-      final response = await http.post(Uri.parse(url)).timeout(
-        Duration(seconds: 10),
-        onTimeout: () => throw Exception("Timeout"),
-      );
+  try {
+    final response = await http.post(Uri.parse(url)).timeout(Duration(seconds: 40));
 
-      if (response.statusCode == 200) {
-        setState(() {
-          resetPrompt = false;
-        });
+    if (response.statusCode == 200) {
+      // ✅ Clear overlay and global flags
+      _webSocketService.clearFrequencyStatus();
+      setState(() {
+        isFrequencyCritical = false;
+        resetPrompt = false;
+      });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Breakers restored successfully.")),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Restore failed: ${response.body}")),
-        );
-      }
-    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: Could not restore breakers")),
+        SnackBar(content: Text("Breakers restored successfully.")),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Restore failed: ${response.body}")),
       );
     }
-
-    setState(() {
-      isLoading = false;
-    });
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error: Could not restore breakers")),
+    );
   }
+
+  setState(() {
+    isLoading = false;
+  });
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -329,56 +328,56 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildBreakerTile(int index) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        elevation: 4,
-        color: Colors.grey.shade100,
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-          title: RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: 'Breaker ${index + 1} Status: ',
-                  style: TextStyle(fontSize: 18, color: Colors.black),
-                ),
-                TextSpan(
-                  text: breakerStatus[index] ? 'ON' : 'OFF',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: breakerStatus[index] ? Colors.cyan.shade600 : Colors.amber.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
+Widget _buildBreakerTile(int index) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
+    child: Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 4,
+      color: Colors.grey.shade100,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+        title: RichText(
+          text: TextSpan(
             children: [
-              Icon(
-                breakerStatus[index] ? Icons.check_circle : Icons.cancel,
-                color: breakerStatus[index] ? Colors.cyan.shade600 : Colors.amber.shade700,
+              TextSpan(
+                text: 'Breaker ${index + 1} Status: ',
+                style: TextStyle(fontSize: 18, color: Colors.black),
               ),
-              Switch(
-                value: breakerStatus[index],
-                onChanged: isLoading || isFrequencyCritical
-                    ? null
-                    : (value) => sendBreakerStatus(index, value),
-                activeColor: Colors.cyan.shade600,
-                inactiveThumbColor: Colors.amber.shade700,
+              TextSpan(
+                text: breakerStatus[index] ? 'ON' : 'OFF',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: breakerStatus[index] ? Colors.cyan.shade600 : Colors.amber.shade700,
+                ),
               ),
             ],
           ),
         ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              breakerStatus[index] ? Icons.check_circle : Icons.cancel,
+              color: breakerStatus[index] ? Colors.cyan.shade600 : Colors.amber.shade700,
+            ),
+            AbsorbPointer( // 👈 Prevents visual flicker during loading
+              absorbing: isLoading || isFrequencyCritical,
+              child: Switch(
+                value: breakerStatus[index],
+                onChanged: (value) => sendBreakerStatus(index, value),
+                activeColor: Colors.cyan.shade600,
+                inactiveThumbColor: Colors.amber.shade700,
+              ),
+            ),
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
 }
-
+}
 
 class SystemPage extends StatefulWidget {
   const SystemPage({super.key});
@@ -549,29 +548,59 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  // Breakers configuration for frequency spikes
   List<bool> breakersToFlip = [false, false, false, false];
-
-  // Notifications toggle
   bool notificationsEnabled = false;
 
-  // ESP32 IP Address (Modify if needed)
   final String esp32Ip = "192.168.4.1";
   final String esp32Port = "80";
 
-  // Loading State
   bool isLoading = false;
-  String loadingMessage = ""; // Dynamic loading text
+  String loadingMessage = "";
+
+  @override
+  void initState() {
+    super.initState();
+    fetchSavedSettings(); // Fetch current breaker settings from ESP32
+  }
+
+  Future<void> fetchSavedSettings() async {
+    setState(() {
+      isLoading = true;
+      loadingMessage = "Loading saved settings...";
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse("http://$esp32Ip:$esp32Port/get_frequency_settings"),
+      ).timeout(Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          breakersToFlip = [
+            data["breaker1"] ?? false,
+            data["breaker2"] ?? false,
+            data["breaker3"] ?? false,
+            data["breaker4"] ?? false,
+          ];
+        });
+      }
+    } catch (e) {
+      print("Error fetching settings: $e");
+    }
+
+    setState(() => isLoading = false);
+  }
 
   Future<void> sendBreakerSettings() async {
-    if (isLoading) return; // Prevent multiple clicks
+    if (isLoading) return;
 
     setState(() {
       isLoading = true;
-      loadingMessage = "Saving Settings..."; // Show dynamic message
+      loadingMessage = "Saving Settings...";
     });
 
-    String url = "http://$esp32Ip:$esp32Port/frequency_settings";
+    final url = "http://$esp32Ip:$esp32Port/frequency_settings";
     Map<String, dynamic> data = {
       "breaker1": breakersToFlip[0],
       "breaker2": breakersToFlip[1],
@@ -584,31 +613,24 @@ class _SettingsPageState extends State<SettingsPage> {
         Uri.parse(url),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(data),
-      ).timeout(
-        Duration(seconds: 5), // Timeout after 5 seconds
-        onTimeout: () {
-          throw Exception("Timeout");
-        },
-      );
+      ).timeout(Duration(seconds: 5));
 
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Breaker settings updated successfully.")),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to update breaker settings.")),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            response.statusCode == 200
+                ? "Breaker settings updated successfully."
+                : "Failed to update breaker settings.",
+          ),
+        ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: Could not connect to BEAM. Check server connection.")),
+        SnackBar(content: Text("Error: Could not connect to BEAM.")),
       );
     }
 
-    setState(() {
-      isLoading = false; // Re-enable UI
-    });
+    setState(() => isLoading = false);
   }
 
   @override
@@ -618,10 +640,7 @@ class _SettingsPageState extends State<SettingsPage> {
         Scaffold(
           appBar: AppBar(
             backgroundColor: Colors.teal.shade800,
-            title: const Text(
-              'Settings',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+            title: const Text('Settings', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             centerTitle: true,
           ),
           body: Container(
@@ -634,19 +653,14 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             child: Center(
               child: SingleChildScrollView(
-                physics: ClampingScrollPhysics(),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // **Frequency Spike Settings**
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                       child: Card(
                         color: Colors.grey.shade100,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 3,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -667,12 +681,11 @@ class _SettingsPageState extends State<SettingsPage> {
                                   return Column(
                                     children: [
                                       CheckboxListTile(
-                                        title: Text("Breaker ${index + 1}",
-                                            style: TextStyle(fontSize: 14)),
+                                        title: Text("Breaker ${index + 1}"),
                                         value: breakersToFlip[index],
                                         onChanged: isLoading
-                                            ? null // Disable changes while loading
-                                            : (bool? value) {
+                                            ? null
+                                            : (value) {
                                                 setState(() {
                                                   breakersToFlip[index] = value ?? false;
                                                 });
@@ -698,8 +711,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         : Colors.teal.shade800,
                                     foregroundColor: Colors.white,
                                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                    textStyle:
-                                        TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                    textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                   ),
                                 ),
                               ),
@@ -708,17 +720,11 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ),
                     ),
-
-                    SizedBox(height: 10),
-
-                    // **Notifications Toggle**
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                       child: Card(
                         color: Colors.grey.shade100,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 3,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -729,7 +735,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               Switch(
                                 value: notificationsEnabled,
                                 onChanged: isLoading
-                                    ? null // Disable switch while saving
+                                    ? null
                                     : (value) {
                                         setState(() {
                                           notificationsEnabled = value;
@@ -751,35 +757,27 @@ class _SettingsPageState extends State<SettingsPage> {
             backgroundColor: Colors.grey.shade900,
             selectedItemColor: Colors.cyan,
             unselectedItemColor: Colors.grey.shade500,
+            currentIndex: 2,
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.control_camera), label: 'Control'),
               BottomNavigationBarItem(icon: Icon(Icons.system_update_alt), label: 'System'),
               BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
             ],
-            currentIndex: 2,
             onTap: isLoading
-                ? null // Prevent navigation while loading
+                ? null
                 : (index) {
                     if (index == 0) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => ControlPage()),
-                      );
+                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ControlPage()));
                     } else if (index == 1) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => SystemPage()),
-                      );
+                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SystemPage()));
                     }
                   },
           ),
         ),
-
-        // **Full-Screen Loading Overlay**
         if (isLoading)
           Positioned.fill(
             child: Container(
-              color: Colors.black.withOpacity(0.6), // Darken screen
+              color: Colors.black.withOpacity(0.6),
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

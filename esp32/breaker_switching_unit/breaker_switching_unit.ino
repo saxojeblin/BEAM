@@ -34,8 +34,9 @@ WebServer server(80);
 WebSocketsServer webSocket(81);
 
 // Global breakers structures
-Breakers currentBreakerStatus = {false, false, false, false};
+Breakers currentBreakerStatus = {true, true, true, true};
 Breakers freqResponseSettings = {false, false, false, false};
+Breakers prevBreakerStates    = {true, true, true, true};
 
 unsigned long lastUpdateTime = 0;
 
@@ -56,6 +57,8 @@ void setup() {
   server.on("/frequency_settings", HTTP_POST, handleFreqResponseSettings);
   // Define endpoint for restoring breaker states after frequency drop
   server.on("/restore_breakers", HTTP_POST, restoreBreakerStates);
+  // Define endpoint for syncing frequency settings
+  server.on("/get_frequency_settings", HTTP_GET, handleGetFrequencySettings);
 
   server.begin();
   Serial.println("HTTP server started.");
@@ -95,12 +98,12 @@ void loop() {
   //   sendFrequencyUpdate(frequency);
   // }
 
-  // simulate frequency request manual values
-  // if (Serial.available() > 0)
-  // {
-  //   float userInput = Serial.parseFloat();
-  //   FrequencyRequestTest(userInput);
-  // }
+  //simulate frequency request manual values
+  if (Serial.available() > 0)
+  {
+    float userInput = Serial.parseFloat();
+    FrequencyRequestTest(userInput);
+  }
 }
 
 void printBreakerStates()

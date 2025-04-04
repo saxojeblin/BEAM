@@ -93,4 +93,10 @@ class WebSocketService {
     _eventController.close();
     channel?.sink.close();
   }
+
+  void clearFrequencyStatus() {
+    frequencyLockActive = false;
+    frequencyResetPending = false;
+  }
+
 }
