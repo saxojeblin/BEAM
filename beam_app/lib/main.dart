@@ -34,27 +34,68 @@ class ControlPage extends StatefulWidget {
   _ControlPageState createState() => _ControlPageState();
 }
 
-class _ControlPageState extends State<ControlPage> {
-  // Breaker statuses
+class _ControlPageState extends State<ControlPage> with SingleTickerProviderStateMixin {
   List<bool> breakerStatus = [false, false, false, false];
+  final String esp32Ip = "192.168.4.1";
+  final String esp32Port = "80";
 
-  // ESP32 IP Address (Set dynamically from Settings)
-  final String esp32Ip = "192.168.4.1"; // Default AP mode IP
-  final String esp32Port = "80"; // Default Port
+  final WebSocketService _webSocketService = WebSocketService();
 
-  bool isLoading = false; // Track if a request is in progress
-  String loadingMessage = ""; // Dynamic loading message
+  bool isLoading = false;
+  String loadingMessage = "";
 
-  // Function to send breaker status update to ESP32
+  bool isFrequencyCritical = false;
+  bool resetPrompt = false;
+
+  late AnimationController _iconAnimationController;
+
+  @override
+  void initState() {
+    super.initState();
+
+  _iconAnimationController = AnimationController(
+    vsync: this,
+    duration: Duration(milliseconds: 500),
+  )..repeat(reverse: true); // Pulses in and out
+
+
+    _webSocketService.eventStream.listen((event) {
+      if (event['event'] == 'frequency_drop') {
+        setState(() {
+          isFrequencyCritical = true;
+          resetPrompt = false;
+        });
+      } else if (event['event'] == 'frequency_restore') {
+        setState(() {
+          isFrequencyCritical = true;
+          resetPrompt = true;
+        });
+      }
+    });
+
+    if (_webSocketService.isFrequencyCritical()) {
+      setState(() {
+        isFrequencyCritical = true;
+        resetPrompt = _webSocketService.isResetPending();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _iconAnimationController.dispose();
+    super.dispose();
+  }
+
   Future<void> sendBreakerStatus(int breakerIndex, bool status) async {
-    if (isLoading) return; // Prevent multiple requests
+    if (isLoading || isFrequencyCritical) return;
 
     setState(() {
       isLoading = true;
-      loadingMessage = "Flipping Breaker ${breakerIndex + 1}..."; // Dynamic message
+      loadingMessage = "Flipping Breaker ${breakerIndex + 1}...";
     });
 
-    String url = "http://$esp32Ip:$esp32Port/breaker";
+    final url = "http://$esp32Ip:$esp32Port/breaker";
 
     try {
       final response = await http.post(
@@ -64,39 +105,71 @@ class _ControlPageState extends State<ControlPage> {
           'status': status ? '1' : '0',
         },
       ).timeout(
-        Duration(seconds: 30), // ✅ Timeout after 5 seconds
-        onTimeout: () {
-          throw Exception("Timeout");
-        },
+        Duration(seconds: 30),
+        onTimeout: () => throw Exception("Timeout"),
       );
 
       if (response.statusCode == 200) {
-        print("Breaker ${breakerIndex + 1} updated successfully.");
         setState(() {
-          breakerStatus[breakerIndex] = status; // Update UI only on success
+          breakerStatus[breakerIndex] = status;
         });
       } else {
-        print("Failed to update breaker ${breakerIndex + 1}. Response: ${response.body}");
         setState(() {
-          breakerStatus[breakerIndex] = !status; // Revert toggle if failure
+          breakerStatus[breakerIndex] = !status;
         });
       }
     } catch (e) {
-      print("Error sending breaker update: $e");
       setState(() {
-        breakerStatus[breakerIndex] = !status; // Revert toggle on error
+        breakerStatus[breakerIndex] = !status;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Failed to communicate with BEAM. Check connection."),
-          duration: Duration(seconds: 2),
-        ),
+        SnackBar(content: Text("Failed to communicate with BEAM")),
       );
     }
 
     setState(() {
-      isLoading = false; // ✅ Re-enable UI after timeout or response
+      isLoading = false;
+    });
+  }
+
+  Future<void> sendRestoreCommand() async {
+    final url = "http://$esp32Ip:$esp32Port/restore_breakers";
+
+    // Hide overlay and show loading screen
+    setState(() {
+      isFrequencyCritical = false;
+      isLoading = true;
+      loadingMessage = "Restoring breakers to previous state...";
+    });
+
+    try {
+      final response = await http.post(Uri.parse(url)).timeout(
+        Duration(seconds: 10),
+        onTimeout: () => throw Exception("Timeout"),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          resetPrompt = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Breakers restored successfully.")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Restore failed: ${response.body}")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: Could not restore breakers")),
+      );
+    }
+
+    setState(() {
+      isLoading = false;
     });
   }
 
@@ -107,13 +180,7 @@ class _ControlPageState extends State<ControlPage> {
         Scaffold(
           appBar: AppBar(
             backgroundColor: Colors.teal.shade800,
-            title: const Text(
-              'Control',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            title: const Text('Control', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             centerTitle: true,
           ),
           body: Column(
@@ -144,17 +211,17 @@ class _ControlPageState extends State<ControlPage> {
               BottomNavigationBarItem(icon: Icon(Icons.system_update_alt), label: 'System'),
               BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
             ],
-            currentIndex: 0, // Set to 0 for the Control page
+            currentIndex: 0,
             onTap: isLoading
-                ? null // Prevent navigation while loading
+                ? null
                 : (index) {
                     if (index == 1) {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => SystemPage()),
                       );
                     } else if (index == 2) {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => SettingsPage()),
                       );
@@ -167,27 +234,94 @@ class _ControlPageState extends State<ControlPage> {
         if (isLoading)
           Positioned.fill(
             child: Container(
-              color: Colors.black.withOpacity(0.6), // Darken screen
+              color: Colors.black.withOpacity(0.6),
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     CircularProgressIndicator(color: Colors.white, strokeWidth: 5),
                     SizedBox(height: 15),
-                    // Replace with Text.rich to remove underline
-                    Text.rich(
-                      TextSpan(
-                        text: loadingMessage,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          decoration: TextDecoration.none, // Remove underline
-                        ),
+                    Text(
+                      loadingMessage,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.none,
                       ),
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+
+        // Frequency Drop Warning Overlay
+        if (isFrequencyCritical)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + kToolbarHeight,
+            left: 0,
+            right: 0,
+            bottom: kBottomNavigationBarHeight,
+            child: Container(
+              color: Colors.black.withOpacity(0.75),
+              child: Center(
+                child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ScaleTransition(
+                            scale: Tween<double>(begin: 1.0, end: 1.3).animate(
+                              CurvedAnimation(parent: _iconAnimationController, curve: Curves.easeInOut),
+                            ),
+                            child: Icon(
+                              resetPrompt ? Icons.check_circle : Icons.warning,
+                              color: resetPrompt ? Colors.greenAccent : Colors.redAccent,
+                              size: 50,
+                            ),
+                          ),
+                          SizedBox(height: 15),
+                          Text(
+                            resetPrompt
+                                ? "Grid Stable"
+                                : "Grid Unstable - Frequency Drop",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            resetPrompt
+                                ? "Grid has stabilized.\nPlease restore breakers to resume control."
+                                : "Grid instability detected.\nWaiting for grid to stabilize...",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          if (resetPrompt)
+                            ElevatedButton(
+                              onPressed: sendRestoreCommand,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.teal.shade800,
+                                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              ),
+                              child: Text(
+                                "Restore Breakers",
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                        ],
+                      ),
+
               ),
             ),
           ),
@@ -231,11 +365,9 @@ class _ControlPageState extends State<ControlPage> {
               ),
               Switch(
                 value: breakerStatus[index],
-                onChanged: isLoading
-                    ? null // Disable switch while waiting for ESP32 response
-                    : (value) {
-                        sendBreakerStatus(index, value);
-                      },
+                onChanged: isLoading || isFrequencyCritical
+                    ? null
+                    : (value) => sendBreakerStatus(index, value),
                 activeColor: Colors.cyan.shade600,
                 inactiveThumbColor: Colors.amber.shade700,
               ),
@@ -246,6 +378,7 @@ class _ControlPageState extends State<ControlPage> {
     );
   }
 }
+
 
 class SystemPage extends StatefulWidget {
   const SystemPage({super.key});

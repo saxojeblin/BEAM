@@ -71,6 +71,13 @@ void setup() {
   pinMode(dirPin, OUTPUT);
   pinMode(in1, OUTPUT);
   pinMode(in2, OUTPUT);
+  pinMode(EN, OUTPUT);
+  pinMode(STBY, OUTPUT);
+  pinMode(X_AXIS_REG, OUTPUT);
+  pinMode(Y_AXIS_REG, OUTPUT);
+  X_AXIS_POWER_SHUTDOWN();
+  Y_AXIS_POWER_SHUTDOWN();
+
 
   printBreakerStates();
 
