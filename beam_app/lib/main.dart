@@ -35,7 +35,7 @@ class ControlPage extends StatefulWidget {
 }
 
 class _ControlPageState extends State<ControlPage> with SingleTickerProviderStateMixin {
-  late List<bool> breakerStatus;
+  List<bool>? breakerStatus;
   final String esp32Ip = "192.168.4.1";
   final String esp32Port = "80";
 
@@ -52,7 +52,6 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    breakerStatus = _webSocketService.getBreakerStates();
 
     _iconAnimationController = AnimationController(
       vsync: this,
@@ -74,11 +73,38 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
     });
 
     if (_webSocketService.isFrequencyCritical()) {
-      setState(() {
-        isFrequencyCritical = true;
-        resetPrompt = _webSocketService.isResetPending();
-      });
+      isFrequencyCritical = true;
+      resetPrompt = _webSocketService.isResetPending();
     }
+
+    _fetchBreakerStates();
+  }
+
+  Future<void> _fetchBreakerStates() async {
+    final url = Uri.parse("http://$esp32Ip:$esp32Port/get_breaker_states");
+    try {
+      final response = await http.get(url).timeout(Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          breakerStatus = List.generate(4, (i) => data['breaker${i + 1}'] == true);
+        });
+      } else {
+        _setUnknownBreakerStates();
+      }
+    } catch (e) {
+      print("Error retrieving breaker states: $e");
+      _setUnknownBreakerStates();
+    }
+  }
+
+  void _setUnknownBreakerStates() {
+    setState(() {
+      breakerStatus = List.generate(4, (_) => false);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("⚠️ Failed to retrieve breaker states.")),
+    );
   }
 
   @override
@@ -104,24 +130,21 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
           'breaker': breakerIndex.toString(),
           'status': status ? '1' : '0',
         },
-      ).timeout(
-        Duration(seconds: 30),
-        onTimeout: () => throw Exception("Timeout"),
-      );
+      ).timeout(Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         setState(() {
-          breakerStatus[breakerIndex] = status;
+          breakerStatus![breakerIndex] = status;
           _webSocketService.updateBreakerState(breakerIndex, status);
         });
       } else {
         setState(() {
-          breakerStatus[breakerIndex] = !status;
+          breakerStatus![breakerIndex] = !status;
         });
       }
     } catch (e) {
       setState(() {
-        breakerStatus[breakerIndex] = !status;
+        breakerStatus![breakerIndex] = !status;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -173,6 +196,8 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final isUnavailable = breakerStatus == null;
+
     return Stack(
       children: [
         Scaffold(
@@ -181,25 +206,27 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
             title: const Text('Control', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             centerTitle: true,
           ),
-          body: Column(
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.teal.shade300, Colors.cyan.shade600],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
+          body: isUnavailable
+              ? Center(child: CircularProgressIndicator())
+              : Column(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.teal.shade300, Colors.cyan.shade600],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(4, (index) => _buildBreakerTile(index)),
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(4, (index) => _buildBreakerTile(index)),
-                  ),
+                  ],
                 ),
-              ),
-            ],
-          ),
           bottomNavigationBar: BottomNavigationBar(
             backgroundColor: Colors.grey.shade900,
             selectedItemColor: Colors.cyan,
@@ -227,36 +254,36 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
                   },
           ),
         ),
+        if (isFrequencyCritical && !isLoading) _buildOverlay(),
+        if (isLoading) _buildLoadingOverlay(),
+      ],
+    );
+  }
 
-        if (isFrequencyCritical && !isLoading)
-          _buildOverlay(),
-
-        if (isLoading)
-          Positioned.fill(
-            child: Container(
-              color: Colors.black.withOpacity(0.6),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Colors.white, strokeWidth: 5),
-                    SizedBox(height: 15),
-                    Text(
-                      loadingMessage,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        decoration: TextDecoration.none,
-                      ),
-                    ),
-                  ],
+  Widget _buildLoadingOverlay() {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withOpacity(0.6),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: Colors.white, strokeWidth: 5),
+              SizedBox(height: 15),
+              Text(
+                loadingMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  decoration: TextDecoration.none,
                 ),
               ),
-            ),
+            ],
           ),
-      ],
+        ),
+      ),
     );
   }
 
@@ -314,10 +341,7 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
                     foregroundColor: Colors.teal.shade800,
                     padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
-                  child: Text(
-                    "Restore Breakers",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  child: Text("Restore Breakers", style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
             ],
           ),
@@ -327,6 +351,9 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
   }
 
   Widget _buildBreakerTile(int index) {
+    final isUnknown = breakerStatus == null;
+    final isOn = breakerStatus?[index] ?? false;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
       child: Card(
@@ -343,11 +370,15 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
                   style: TextStyle(fontSize: 18, color: Colors.black),
                 ),
                 TextSpan(
-                  text: breakerStatus[index] ? 'ON' : 'OFF',
+                  text: isUnknown
+                      ? 'UNKNOWN'
+                      : (isOn ? 'ON' : 'OFF'),
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: breakerStatus[index] ? Colors.cyan.shade600 : Colors.amber.shade700,
+                    color: isUnknown
+                        ? Colors.grey
+                        : (isOn ? Colors.cyan.shade600 : Colors.amber.shade700),
                   ),
                 ),
               ],
@@ -357,13 +388,17 @@ class _ControlPageState extends State<ControlPage> with SingleTickerProviderStat
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                breakerStatus[index] ? Icons.check_circle : Icons.cancel,
-                color: breakerStatus[index] ? Colors.cyan.shade600 : Colors.amber.shade700,
+                isUnknown
+                    ? Icons.help_outline
+                    : (isOn ? Icons.check_circle : Icons.cancel),
+                color: isUnknown
+                    ? Colors.grey
+                    : (isOn ? Colors.cyan.shade600 : Colors.amber.shade700),
               ),
               AbsorbPointer(
-                absorbing: isLoading || isFrequencyCritical,
+                absorbing: isLoading || isFrequencyCritical || isUnknown,
                 child: Switch(
-                  value: breakerStatus[index],
+                  value: isOn,
                   onChanged: (value) => sendBreakerStatus(index, value),
                   activeColor: Colors.cyan.shade600,
                   inactiveThumbColor: Colors.amber.shade700,
@@ -513,7 +548,6 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   List<bool> breakersToFlip = [false, false, false, false];
-  bool notificationsEnabled = false;
 
   final String esp32Ip = "192.168.4.1";
   final String esp32Port = "80";
@@ -678,34 +712,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                     textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                      child: Card(
-                        color: Colors.grey.shade100,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 3,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text("Enable Notifications", style: TextStyle(fontSize: 16)),
-                              Switch(
-                                value: notificationsEnabled,
-                                onChanged: isLoading
-                                    ? null
-                                    : (value) {
-                                        setState(() {
-                                          notificationsEnabled = value;
-                                        });
-                                      },
-                                activeColor: Colors.cyan.shade600,
                               ),
                             ],
                           ),

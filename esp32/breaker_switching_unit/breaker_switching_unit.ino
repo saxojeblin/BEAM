@@ -59,6 +59,8 @@ void setup() {
   server.on("/restore_breakers", HTTP_POST, restoreBreakerStates);
   // Define endpoint for syncing frequency settings
   server.on("/get_frequency_settings", HTTP_GET, handleGetFrequencySettings);
+  // Define enpoint for returning breaker states to app
+  server.on("/get_breaker_states", HTTP_GET, handleGetBreakerStates);
 
   server.begin();
   Serial.println("HTTP server started.");

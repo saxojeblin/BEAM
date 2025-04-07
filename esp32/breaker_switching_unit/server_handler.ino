@@ -240,3 +240,16 @@ void handleGetFrequencySettings() {
   serializeJson(doc, response);
   server.send(200, "application/json", response);
 }
+
+void handleGetBreakerStates() {
+  Serial.println("Sending breaker states to app.");
+  StaticJsonDocument<200> doc;
+  doc["breaker1"] = currentBreakerStatus.breaker1;
+  doc["breaker2"] = currentBreakerStatus.breaker2;
+  doc["breaker3"] = currentBreakerStatus.breaker3;
+  doc["breaker4"] = currentBreakerStatus.breaker4;
+
+  String response;
+  serializeJson(doc, response);
+  server.send(200, "application/json", response);
+}
